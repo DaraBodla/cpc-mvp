@@ -107,7 +107,7 @@ export default function AdminDashboard() {
     return matchesSearch && matchesType && matchesStatus
   })
 
-  const uniqueTypes = [...new Set(businesses.map(b => b.business_type))]
+  const uniqueTypes = Array.from(new Set(businesses.map(b => b.business_type)))
 
   if (loading) {
     return (
