@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { 
   BarChart3, Users, Package, MessageSquare, TrendingUp, 
   RefreshCw, Search, Eye, CheckCircle, Clock, ArrowLeft, Zap, Target,
-  Mail, Phone, X, Percent, MousePointer, PieChart
+  Mail, Phone, X, Percent, MousePointer, PieChart, Upload, CreditCard
 } from 'lucide-react'
 
 interface Business {
@@ -35,11 +35,13 @@ interface Stats {
 interface Metrics {
   conversionRate: number
   demoBotTriggerRate: number
+  paymentUploadRate: number
   automationDistribution: Record<string, number>
   totalVisitors: number
   totalSubmissions: number
   totalDemoClicks: number
   totalDemoMessages: number
+  totalPaymentUploads: number
   uniqueDemoEngagements: number
 }
 
@@ -203,7 +205,7 @@ export default function AdminDashboard() {
         {activeTab === 'metrics' && (
           <div className="space-y-8">
             {/* Key Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Metric 1: Conversion Rate */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -262,6 +264,26 @@ export default function AdminDashboard() {
                   <p className="text-xs text-gray-500">Most frequently selected automation type</p>
                 </div>
               </div>
+
+              {/* Metric 4: Payment Upload Rate */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="bg-amber-100 p-3 rounded-xl">
+                    <CreditCard className="text-amber-600" size={24} />
+                  </div>
+                  <span className="text-xs font-medium text-gray-500 uppercase">Metric 4</span>
+                </div>
+                <p className="text-4xl font-bold text-gray-900 mb-1">
+                  {metrics?.paymentUploadRate?.toFixed(1) || '0'}%
+                </p>
+                <p className="text-gray-600 font-medium">Payment Upload Rate</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {metrics?.totalPaymentUploads || 0} uploads / {metrics?.totalSubmissions || 0} submissions
+                </p>
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500">% of businesses that upload payment screenshot</p>
+                </div>
+              </div>
             </div>
 
             {/* Automation Distribution */}
@@ -299,7 +321,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Raw Numbers */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="bg-gray-50 rounded-xl p-4 text-center">
                 <p className="text-2xl font-bold text-gray-900">{metrics?.totalVisitors || 0}</p>
                 <p className="text-sm text-gray-600">Total Visitors</p>
@@ -311,6 +333,10 @@ export default function AdminDashboard() {
               <div className="bg-gray-50 rounded-xl p-4 text-center">
                 <p className="text-2xl font-bold text-gray-900">{metrics?.totalDemoClicks || 0}</p>
                 <p className="text-sm text-gray-600">Demo Bot Clicks</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4 text-center">
+                <p className="text-2xl font-bold text-gray-900">{metrics?.totalPaymentUploads || 0}</p>
+                <p className="text-sm text-gray-600">Payment Uploads</p>
               </div>
               <div className="bg-gray-50 rounded-xl p-4 text-center">
                 <p className="text-2xl font-bold text-gray-900">{metrics?.totalDemoMessages || 0}</p>
