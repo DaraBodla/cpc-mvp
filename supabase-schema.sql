@@ -308,3 +308,33 @@ COMMENT ON TABLE leads IS 'Leads captured from WhatsApp interactions';
 COMMENT ON TABLE message_logs IS 'Log of all WhatsApp messages for debugging and analytics';
 COMMENT ON TABLE processed_messages IS 'Deduplication table for WhatsApp webhook messages';
 COMMENT ON TABLE rate_limits IS 'Rate limiting tracking for WhatsApp users';
+
+-- Add missing columns to businesses table
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS total_amount INTEGER DEFAULT 0;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'unpaid';
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_amount INTEGER DEFAULT 0;
+
+-- Create analytics_events table if not exists
+CREATE TABLE IF NOT EXISTS analytics_events (
+    id BIGSERIAL PRIMARY KEY,
+    event VARCHAR(100) NOT NULL,
+    page VARCHAR(100),
+    automation_type VARCHAR(255),
+    source VARCHAR(100),
+    session_id VARCHAR(100),
+    business_id BIGINT,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Create payments table if not exists
+CREATE TABLE IF NOT EXISTS payments (
+    id BIGSERIAL PRIMARY KEY,
+    business_id BIGINT,
+    amount INTEGER NOT NULL DEFAULT 0,
+    screenshot_data TEXT,
+    screenshot_filename VARCHAR(255),
+    screenshot_size INTEGER,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
