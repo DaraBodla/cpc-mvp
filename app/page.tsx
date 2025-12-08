@@ -15,8 +15,8 @@ const PRICE_PER_FEATURE = 3000 // PKR
 // Bank Details
 const BANK_DETAILS = {
   bankName: 'Sadapay',
-  accountTitle: 'CPC - Chat Product Company',
-  accountNumber: '03186210719',
+  accountTitle: 'Dara Shioh Bodla',
+  accountNumber: '03216320882'
 }
 
 // Generate or retrieve session ID for analytics
