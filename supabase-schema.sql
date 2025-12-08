@@ -154,6 +154,34 @@ CREATE INDEX IF NOT EXISTS idx_processed_messages_message_id ON processed_messag
 -- DELETE FROM processed_messages WHERE processed_at < NOW() - INTERVAL '7 days';
 
 -- ============================================================
+-- PAYMENTS TABLE (for payment screenshots and tracking)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS payments (
+    id BIGSERIAL PRIMARY KEY,
+    business_id BIGINT REFERENCES businesses(id) ON DELETE CASCADE,
+    amount INTEGER NOT NULL DEFAULT 0,
+    screenshot_data TEXT, -- Base64 encoded image
+    screenshot_filename VARCHAR(255),
+    screenshot_size INTEGER,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    verified_at TIMESTAMPTZ,
+    verified_by VARCHAR(255),
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ,
+    CONSTRAINT valid_payment_status CHECK (status IN ('pending', 'verified', 'rejected', 'refunded'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_payments_business_id ON payments(business_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at DESC);
+
+-- Add payment columns to businesses table
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'unpaid';
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_amount INTEGER DEFAULT 0;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS total_amount INTEGER DEFAULT 0;
+
+-- ============================================================
 -- ANALYTICS EVENTS TABLE (for tracking metrics)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS analytics_events (
