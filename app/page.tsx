@@ -1,14 +1,44 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { 
   Send, MessageSquare, CheckCircle, BarChart3, Users, Zap, Clock, 
   Smartphone, TrendingUp, Bot, Package, Calendar, MessageCircle, 
-  ArrowRight, Menu, X, Shield, Award, Target, Sparkles, ChevronRight
+  ArrowRight, Menu, X, Shield, Award, Target, Sparkles
 } from 'lucide-react'
 
 const DEMO_WHATSAPP = process.env.NEXT_PUBLIC_DEMO_WHATSAPP || '+92XXXXXXXXXX'
+
+// Generate or retrieve session ID for analytics
+function getSessionId(): string {
+  if (typeof window === 'undefined') return ''
+  
+  let sessionId = sessionStorage.getItem('cpc_session_id')
+  if (!sessionId) {
+    sessionId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    sessionStorage.setItem('cpc_session_id', sessionId)
+  }
+  return sessionId
+}
+
+// Analytics tracking helper
+async function trackEvent(event: string, data: Record<string, unknown> = {}) {
+  try {
+    const sessionId = getSessionId()
+    await fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event,
+        session_id: sessionId,
+        ...data
+      })
+    })
+  } catch (error) {
+    console.error('Analytics error:', error)
+  }
+}
 
 interface FormData {
   businessName: string
@@ -46,7 +76,9 @@ const stats = [
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [submittedBusinessId, setSubmittedBusinessId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
+  const [formStarted, setFormStarted] = useState(false)
   const [formData, setFormData] = useState<FormData>({
     businessName: '',
     businessType: '',
@@ -56,12 +88,27 @@ export default function Home() {
     automations: []
   })
 
+  // Track page view on mount
+  useEffect(() => {
+    trackEvent('page_view', { page: 'landing' })
+  }, [])
+
+  // Track form start when user begins typing
+  const handleFormStart = useCallback(() => {
+    if (!formStarted) {
+      setFormStarted(true)
+      trackEvent('form_start', { page: 'landing' })
+    }
+  }, [formStarted])
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    handleFormStart()
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
   const handleAutomationToggle = (automation: string) => {
+    handleFormStart()
     setFormData(prev => ({
       ...prev,
       automations: prev.automations.includes(automation)
@@ -86,6 +133,25 @@ export default function Home() {
       })
 
       if (response.ok) {
+        const data = await response.json()
+        const businessId = data.business?.id
+        setSubmittedBusinessId(businessId)
+        
+        // Track successful form submission with automations
+        trackEvent('form_submit', { 
+          page: 'landing',
+          business_id: businessId,
+          metadata: { automations: formData.automations }
+        })
+        
+        // Track each automation selection
+        for (const automation of formData.automations) {
+          trackEvent('automation_selected', {
+            automation_type: automation,
+            business_id: businessId
+          })
+        }
+        
         setSubmitted(true)
       } else {
         const error = await response.json()
@@ -99,6 +165,14 @@ export default function Home() {
     }
   }
 
+  // Track demo bot clicks
+  const handleDemoClick = (source: string) => {
+    trackEvent('demo_bot_click', {
+      source,
+      business_id: submittedBusinessId
+    })
+  }
+
   const resetForm = () => {
     setFormData({
       businessName: '',
@@ -109,6 +183,8 @@ export default function Home() {
       automations: []
     })
     setSubmitted(false)
+    setSubmittedBusinessId(null)
+    setFormStarted(false)
   }
 
   const scrollToForm = () => {
@@ -144,6 +220,7 @@ export default function Home() {
                 href={`https://wa.me/${DEMO_WHATSAPP.replace(/[^0-9]/g, '')}?text=Hi!%20I%20just%20signed%20up%20for%20CPC.`}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => handleDemoClick('success_page_main')}
                 className="inline-flex items-center gap-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-10 py-4 rounded-xl font-bold text-lg hover:shadow-xl transition-all"
               >
                 <Smartphone size={24} />
@@ -154,21 +231,33 @@ export default function Home() {
             <div className="bg-gray-50 rounded-2xl p-8 mb-8 text-left">
               <h4 className="font-bold text-gray-900 mb-6 text-xl text-center">Next Steps</h4>
               <div className="space-y-5">
-                {[
-                  { icon: CheckCircle, color: 'emerald', title: '1. Test the Demo', desc: 'Experience our automation capabilities firsthand' },
-                  { icon: Clock, color: 'blue', title: '2. We\'ll Contact You (24 hours)', desc: 'Our team will reach out via WhatsApp to discuss your needs' },
-                  { icon: Zap, color: 'purple', title: '3. Custom Setup', desc: 'We\'ll configure your personalized automation system' }
-                ].map((step, idx) => (
-                  <div key={idx} className="flex items-start gap-4">
-                    <div className={`bg-${step.color}-100 rounded-full p-2 mt-1 flex-shrink-0`}>
-                      <step.icon className={`text-${step.color}-600`} size={20} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900 text-lg">{step.title}</p>
-                      <p className="text-gray-600">{step.desc}</p>
-                    </div>
+                <div className="flex items-start gap-4">
+                  <div className="bg-emerald-100 rounded-full p-2 mt-1 flex-shrink-0">
+                    <CheckCircle className="text-emerald-600" size={20} />
                   </div>
-                ))}
+                  <div>
+                    <p className="font-semibold text-gray-900 text-lg">1. Test the Demo</p>
+                    <p className="text-gray-600">Experience our automation capabilities firsthand</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="bg-blue-100 rounded-full p-2 mt-1 flex-shrink-0">
+                    <Clock className="text-blue-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 text-lg">2. We&apos;ll Contact You (24 hours)</p>
+                    <p className="text-gray-600">Our team will reach out via WhatsApp to discuss your needs</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="bg-purple-100 rounded-full p-2 mt-1 flex-shrink-0">
+                    <Zap className="text-purple-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 text-lg">3. Custom Setup</p>
+                    <p className="text-gray-600">We&apos;ll configure your personalized automation system</p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -183,6 +272,7 @@ export default function Home() {
                 href={`https://wa.me/${DEMO_WHATSAPP.replace(/[^0-9]/g, '')}?text=Demo%20Request`}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => handleDemoClick('success_page_footer')}
                 className="flex-1 btn-primary flex items-center justify-center gap-2"
               >
                 <MessageSquare size={20} />
@@ -222,6 +312,7 @@ export default function Home() {
                 href={`https://wa.me/${DEMO_WHATSAPP.replace(/[^0-9]/g, '')}?text=Demo%20Request`}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => handleDemoClick('nav_button')}
                 className="btn-primary flex items-center gap-2"
               >
                 <Bot size={18} />
@@ -256,6 +347,7 @@ export default function Home() {
                 href={`https://wa.me/${DEMO_WHATSAPP.replace(/[^0-9]/g, '')}?text=Demo%20Request`} 
                 target="_blank" 
                 rel="noopener noreferrer" 
+                onClick={() => handleDemoClick('mobile_nav')}
                 className="block w-full text-center bg-emerald-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-emerald-700 transition"
               >
                 Request Demo
@@ -298,6 +390,7 @@ export default function Home() {
                 href={`https://wa.me/${DEMO_WHATSAPP.replace(/[^0-9]/g, '')}?text=Demo%20Request`} 
                 target="_blank" 
                 rel="noopener noreferrer" 
+                onClick={() => handleDemoClick('hero_button')}
                 className="btn-secondary flex items-center justify-center gap-2 text-lg"
               >
                 <Bot size={20} />
@@ -345,7 +438,7 @@ export default function Home() {
                     <div className="flex-1">
                       <p className="font-semibold text-gray-900 mb-1">AI Assistant</p>
                       <p className="text-sm text-gray-700 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg p-3 border border-emerald-100">
-                        We're open Mon-Sat, 9AM-6PM. We offer consultation, booking, and product catalog. How can I assist you today?
+                        We&apos;re open Mon-Sat, 9AM-6PM. We offer consultation, booking, and product catalog. How can I assist you today?
                       </p>
                     </div>
                   </div>
@@ -420,7 +513,7 @@ export default function Home() {
               Ready to Get Started?
             </h2>
             <p className="text-xl text-gray-600">
-              Fill out the form below and we'll set up your automation within 24 hours
+              Fill out the form below and we&apos;ll set up your automation within 24 hours
             </p>
           </div>
 
@@ -553,6 +646,7 @@ export default function Home() {
                 href={`https://wa.me/${DEMO_WHATSAPP.replace(/[^0-9]/g, '')}?text=Demo%20Request`}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => handleDemoClick('form_section')}
                 className="flex-1 btn-secondary flex items-center justify-center gap-2"
               >
                 <Bot size={20} />
