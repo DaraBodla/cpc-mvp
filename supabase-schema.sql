@@ -154,6 +154,26 @@ CREATE INDEX IF NOT EXISTS idx_processed_messages_message_id ON processed_messag
 -- DELETE FROM processed_messages WHERE processed_at < NOW() - INTERVAL '7 days';
 
 -- ============================================================
+-- ANALYTICS EVENTS TABLE (for tracking metrics)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS analytics_events (
+    id BIGSERIAL PRIMARY KEY,
+    event VARCHAR(100) NOT NULL,
+    page VARCHAR(100),
+    automation_type VARCHAR(255),
+    source VARCHAR(100),
+    session_id VARCHAR(100),
+    business_id BIGINT REFERENCES businesses(id) ON DELETE SET NULL,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_event ON analytics_events(event);
+CREATE INDEX IF NOT EXISTS idx_analytics_session ON analytics_events(session_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_created_at ON analytics_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_business_id ON analytics_events(business_id);
+
+-- ============================================================
 -- RATE LIMITS TABLE
 -- ============================================================
 CREATE TABLE IF NOT EXISTS rate_limits (
