@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { 
   BarChart3, Users, Package, MessageSquare, TrendingUp, 
   RefreshCw, Search, Eye, CheckCircle, Clock, ArrowLeft, Zap, Target,
-  Mail, Phone, X
+  Mail, Phone, X, Percent, MousePointer, PieChart
 } from 'lucide-react'
 
 interface Business {
@@ -32,6 +32,17 @@ interface Stats {
   automationPopularity: Record<string, number>
 }
 
+interface Metrics {
+  conversionRate: number
+  demoBotTriggerRate: number
+  automationDistribution: Record<string, number>
+  totalVisitors: number
+  totalSubmissions: number
+  totalDemoClicks: number
+  totalDemoMessages: number
+  uniqueDemoEngagements: number
+}
+
 const statusColors: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-800',
   contacted: 'bg-blue-100 text-blue-800',
@@ -42,11 +53,13 @@ const statusColors: Record<string, string> = {
 export default function AdminDashboard() {
   const [businesses, setBusinesses] = useState<Business[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
+  const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null)
+  const [activeTab, setActiveTab] = useState<'businesses' | 'metrics'>('businesses')
 
   useEffect(() => {
     fetchData()
@@ -55,9 +68,10 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [businessesRes, statsRes] = await Promise.all([
+      const [businessesRes, statsRes, metricsRes] = await Promise.all([
         fetch('/api/businesses'),
-        fetch('/api/stats')
+        fetch('/api/stats'),
+        fetch('/api/analytics')
       ])
 
       if (businessesRes.ok) {
@@ -68,6 +82,11 @@ export default function AdminDashboard() {
       if (statsRes.ok) {
         const data = await statsRes.json()
         setStats(data)
+      }
+
+      if (metricsRes.ok) {
+        const data = await metricsRes.json()
+        setMetrics(data)
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -156,6 +175,162 @@ export default function AdminDashboard() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Tab Navigation */}
+        <div className="flex gap-4 mb-8 border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('businesses')}
+            className={`pb-4 px-2 font-semibold transition-colors ${
+              activeTab === 'businesses'
+                ? 'text-emerald-600 border-b-2 border-emerald-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Business Management
+          </button>
+          <button
+            onClick={() => setActiveTab('metrics')}
+            className={`pb-4 px-2 font-semibold transition-colors ${
+              activeTab === 'metrics'
+                ? 'text-emerald-600 border-b-2 border-emerald-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Product Metrics
+          </button>
+        </div>
+
+        {/* Metrics Tab Content */}
+        {activeTab === 'metrics' && (
+          <div className="space-y-8">
+            {/* Key Metrics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Metric 1: Conversion Rate */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="bg-emerald-100 p-3 rounded-xl">
+                    <Percent className="text-emerald-600" size={24} />
+                  </div>
+                  <span className="text-xs font-medium text-gray-500 uppercase">Metric 1</span>
+                </div>
+                <p className="text-4xl font-bold text-gray-900 mb-1">
+                  {metrics?.conversionRate?.toFixed(1) || '0'}%
+                </p>
+                <p className="text-gray-600 font-medium">Onboarding Conversion Rate</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {metrics?.totalSubmissions || 0} submissions / {metrics?.totalVisitors || 0} visitors
+                </p>
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500">
+                    % of visitors who complete the onboarding form
+                  </p>
+                </div>
+              </div>
+
+              {/* Metric 2: Demo Bot Trigger Rate */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="bg-blue-100 p-3 rounded-xl">
+                    <MousePointer className="text-blue-600" size={24} />
+                  </div>
+                  <span className="text-xs font-medium text-gray-500 uppercase">Metric 2</span>
+                </div>
+                <p className="text-4xl font-bold text-gray-900 mb-1">
+                  {metrics?.demoBotTriggerRate?.toFixed(1) || '0'}%
+                </p>
+                <p className="text-gray-600 font-medium">Demo Bot Trigger Rate</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {metrics?.uniqueDemoEngagements || 0} engaged / {metrics?.totalSubmissions || 0} onboarded
+                </p>
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500">
+                    % of businesses that test the demo bot after onboarding
+                  </p>
+                </div>
+              </div>
+
+              {/* Metric 3: Top Automation */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="bg-purple-100 p-3 rounded-xl">
+                    <PieChart className="text-purple-600" size={24} />
+                  </div>
+                  <span className="text-xs font-medium text-gray-500 uppercase">Metric 3</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900 mb-1">
+                  {metrics?.automationDistribution && Object.keys(metrics.automationDistribution).length > 0
+                    ? Object.entries(metrics.automationDistribution)
+                        .sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
+                    : 'N/A'}
+                </p>
+                <p className="text-gray-600 font-medium">Most Demanded Automation</p>
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500">
+                    Most frequently selected automation type
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Automation Distribution Detail */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+              <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <PieChart size={20} className="text-emerald-600" />
+                Automation Use-Case Distribution (Metric 3 Detail)
+              </h3>
+              
+              {metrics?.automationDistribution && Object.keys(metrics.automationDistribution).length > 0 ? (
+                <div className="space-y-4">
+                  {Object.entries(metrics.automationDistribution)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([automation, count]) => {
+                      const total = Object.values(metrics.automationDistribution).reduce((a, b) => a + b, 0)
+                      const percentage = Math.round((count / total) * 100)
+                      return (
+                        <div key={automation}>
+                          <div className="flex justify-between text-sm mb-2">
+                            <span className="text-gray-700 font-medium">{automation}</span>
+                            <span className="text-gray-500">{count} selections ({percentage}%)</span>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-3">
+                            <div 
+                              className="bg-gradient-to-r from-emerald-500 to-teal-500 h-3 rounded-full transition-all"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-8">No automation data yet. Data will appear after businesses submit the form.</p>
+              )}
+            </div>
+
+            {/* Raw Numbers */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-gray-50 rounded-xl p-4 text-center">
+                <p className="text-2xl font-bold text-gray-900">{metrics?.totalVisitors || 0}</p>
+                <p className="text-sm text-gray-600">Total Visitors</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4 text-center">
+                <p className="text-2xl font-bold text-gray-900">{metrics?.totalSubmissions || 0}</p>
+                <p className="text-sm text-gray-600">Form Submissions</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4 text-center">
+                <p className="text-2xl font-bold text-gray-900">{metrics?.totalDemoClicks || 0}</p>
+                <p className="text-sm text-gray-600">Demo Bot Clicks</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4 text-center">
+                <p className="text-2xl font-bold text-gray-900">{metrics?.totalDemoMessages || 0}</p>
+                <p className="text-sm text-gray-600">WhatsApp Messages</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Businesses Tab Content */}
+        {activeTab === 'businesses' && (
+          <>
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6 hover:shadow-md transition">
