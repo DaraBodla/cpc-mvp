@@ -8,6 +8,7 @@ export type AnalyticsEvent =
   | 'demo_bot_click'
   | 'demo_bot_message'
   | 'automation_selected'
+  | 'payment_screenshot_uploaded'
 
 export interface AnalyticsData {
   event: AnalyticsEvent
@@ -117,11 +118,13 @@ export class Analytics {
       return {
         conversionRate: 0,
         demoBotTriggerRate: 0,
+        paymentUploadRate: 0,
         automationDistribution: {},
         totalVisitors: 0,
         totalSubmissions: 0,
         totalDemoClicks: 0,
-        totalDemoMessages: 0
+        totalDemoMessages: 0,
+        totalPaymentUploads: 0
       }
     }
 
@@ -134,6 +137,9 @@ export class Analytics {
 
     const demoClicks = events.filter(e => e.event === 'demo_bot_click')
     const demoMessages = events.filter(e => e.event === 'demo_bot_message')
+    
+    const paymentUploads = events.filter(e => e.event === 'payment_screenshot_uploaded')
+    const totalPaymentUploads = paymentUploads.length
     
     // Unique businesses that clicked demo after submitting
     const submittedBusinessIds = new Set(formSubmits.map(e => e.business_id).filter(Boolean))
@@ -157,6 +163,10 @@ export class Analytics {
       ? (uniqueDemoEngagements / totalSubmissions) * 100 
       : 0
 
+    const paymentUploadRate = totalSubmissions > 0 
+      ? (totalPaymentUploads / totalSubmissions) * 100 
+      : 0
+
     return {
       // Metric 1: Conversion Rate
       conversionRate: Math.round(conversionRate * 100) / 100,
@@ -167,11 +177,15 @@ export class Analytics {
       // Metric 3: Automation Distribution
       automationDistribution,
       
+      // Metric 4: Payment Upload Rate
+      paymentUploadRate: Math.round(paymentUploadRate * 100) / 100,
+      
       // Raw numbers
       totalVisitors: uniqueVisitors,
       totalSubmissions,
       totalDemoClicks: demoClicks.length,
       totalDemoMessages: demoMessages.length,
+      totalPaymentUploads,
       uniqueDemoEngagements,
       
       // Time range
