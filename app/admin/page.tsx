@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { 
   BarChart3, Users, Package, MessageSquare, TrendingUp, 
   RefreshCw, Search, Eye, CheckCircle, Clock, ArrowLeft, Zap, Target,
-  Mail, Phone, X, Percent, MousePointer, PieChart, Upload, CreditCard
+  Mail, Phone, X, Percent, MousePointer, PieChart, Upload, CreditCard,
+  Lock, KeyRound, Shield, LogOut, AlertCircle
 } from 'lucide-react'
 
 interface Business {
@@ -53,6 +54,15 @@ const statusColors: Record<string, string> = {
 }
 
 export default function AdminDashboard() {
+  // Auth states
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [password1, setPassword1] = useState('')
+  const [password2, setPassword2] = useState('')
+  const [loginError, setLoginError] = useState('')
+  const [loggingIn, setLoggingIn] = useState(false)
+
+  // Dashboard states
   const [businesses, setBusinesses] = useState<Business[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
@@ -63,9 +73,68 @@ export default function AdminDashboard() {
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null)
   const [activeTab, setActiveTab] = useState<'businesses' | 'metrics'>('businesses')
 
+  // Check authentication on mount
   useEffect(() => {
-    fetchData()
+    checkAuth()
   }, [])
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch('/api/auth')
+      if (response.ok) {
+        const data = await response.json()
+        setIsAuthenticated(data.authenticated)
+        if (data.authenticated) {
+          fetchData()
+        }
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error)
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoginError('')
+    setLoggingIn(true)
+
+    try {
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password1, password2 })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setIsAuthenticated(true)
+        setPassword1('')
+        setPassword2('')
+        fetchData()
+      } else {
+        setLoginError(data.error || 'Authentication failed')
+      }
+    } catch (error) {
+      setLoginError('Network error. Please try again.')
+    } finally {
+      setLoggingIn(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth', { method: 'DELETE' })
+      setIsAuthenticated(false)
+      setBusinesses([])
+      setStats(null)
+      setMetrics(null)
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
+  }
 
   const fetchData = async () => {
     setLoading(true)
@@ -130,6 +199,112 @@ export default function AdminDashboard() {
 
   const uniqueTypes = Array.from(new Set(businesses.map(b => b.business_type)))
 
+  // Auth loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="animate-spin text-emerald-600 mx-auto mb-4" size={48} />
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Login screen
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center px-4">
+        <div className="max-w-md w-full">
+          {/* Logo */}
+          <div className="text-center mb-8">
+            <div className="bg-gradient-to-br from-emerald-600 to-teal-600 p-4 rounded-2xl w-20 h-20 mx-auto mb-4 shadow-lg shadow-emerald-500/30">
+              <Shield className="text-white w-full h-full" />
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">Admin Access</h1>
+            <p className="text-gray-400">Enter both passwords to continue</p>
+          </div>
+
+          {/* Login Form */}
+          <form onSubmit={handleLogin} className="bg-white rounded-3xl shadow-2xl p-8">
+            {loginError && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700">
+                <AlertCircle size={20} />
+                <span>{loginError}</span>
+              </div>
+            )}
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <div className="flex items-center gap-2">
+                    <Lock size={16} />
+                    Password 1
+                  </div>
+                </label>
+                <input
+                  type="password"
+                  value={password1}
+                  onChange={(e) => setPassword1(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                  placeholder="Enter first password"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <div className="flex items-center gap-2">
+                    <KeyRound size={16} />
+                    Password 2
+                  </div>
+                </label>
+                <input
+                  type="password"
+                  value={password2}
+                  onChange={(e) => setPassword2(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                  placeholder="Enter second password"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loggingIn || !password1 || !password2}
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loggingIn ? (
+                  <>
+                    <RefreshCw className="animate-spin" size={20} />
+                    Authenticating...
+                  </>
+                ) : (
+                  <>
+                    <Lock size={20} />
+                    Access Dashboard
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-gray-200 text-center">
+              <Link href="/" className="text-gray-500 hover:text-emerald-600 text-sm flex items-center justify-center gap-2">
+                <ArrowLeft size={16} />
+                Back to Website
+              </Link>
+            </div>
+          </form>
+
+          <p className="text-center text-gray-500 text-sm mt-6">
+            🔒 Protected by dual-password authentication
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Dashboard loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -141,6 +316,7 @@ export default function AdminDashboard() {
     )
   }
 
+  // Dashboard content
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
@@ -171,6 +347,13 @@ export default function AdminDashboard() {
                 <ArrowLeft size={18} />
                 <span className="hidden sm:inline">Back to Site</span>
               </Link>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 text-red-600 hover:text-red-700 font-medium transition p-2 rounded-lg hover:bg-red-50"
+              >
+                <LogOut size={18} />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
             </div>
           </div>
         </div>
