@@ -1,199 +1,67 @@
-// server.js - Complete Backend for CPC Application with Supabase
+// server.js - Node.js Backend with Express + Supabase
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
-const nodemailer = require('nodemailer');
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-const registerWhatsAppWebhook = require("./whatsappWebhook");
-registerWhatsAppWebhook(app);
-
-
 // Supabase Client
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
+  process.env.SUPABASE_ANON_KEY
 );
 
-console.log('✅ Supabase client initialized');
-
-// Email Configuration (using Gmail as example)
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
+// Test Supabase Connection
+(async () => {
+  try {
+    const { data, error } = await supabase.from('businesses').select('count');
+    if (error) throw error;
+    console.log('✅ Supabase Connected Successfully');
+  } catch (error) {
+    console.error('❌ Supabase Connection Error:', error.message);
   }
+})();
+
+// ==================== API ROUTES ====================
+
+// Health Check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'healthy', 
+    timestamp: new Date(),
+    database: 'supabase'
+  });
 });
 
-// Email Templates
-const sendWelcomeEmail = async (business) => {
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: business.email,
-    subject: 'Welcome to CPC - Your WhatsApp Automation Request',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #059669;">Welcome to CPC!</h2>
-        <p>Hi ${business.ownerName},</p>
-        <p>Thank you for registering <strong>${business.businessName}</strong> with Chat Product Company.</p>
-        
-        <div style="background: #f3f4f6; padding: 20px; border-radius: 10px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">Your Selected Automations:</h3>
-          <ul>
-            ${business.automations.map(auto => `<li>${auto}</li>`).join('')}
-          </ul>
-        </div>
-        
-        <h3>What's Next?</h3>
-        <ol>
-          <li>Test our demo bot at: <strong>+92XXXXXXXXX</strong></li>
-          <li>Our team will contact you within 24 hours via WhatsApp</li>
-          <li>We'll set up your custom automation system</li>
-        </ol>
-        
-        <p>If you have any questions, feel free to reach out!</p>
-        
-        <p>Best regards,<br><strong>CPC Team</strong></p>
-      </div>
-    `
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log('✅ Welcome email sent to:', business.email);
-  } catch (error) {
-    console.error('❌ Email error:', error);
-  }
-};
-
-// ROUTES
-
-// 1. Register New Business
-app.post('/api/businesses', async (req, res) => {
-  try {
-    const { businessName, businessType, ownerName, whatsapp, email, automations } = req.body;
-
-    // Validation
-    if (!businessName || !businessType || !ownerName || !whatsapp || !email || !automations || automations.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'All fields are required and at least one automation must be selected' 
-      });
-    }
-
-    // Check if email already exists
-    const { data: existingBusiness } = await supabase
-      .from('businesses')
-      .select('*')
-      .eq('email', email)
-      .single();
-
-    if (existingBusiness) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'A business with this email is already registered' 
-      });
-    }
-
-    // Insert new business
-    const { data, error } = await supabase
-      .from('businesses')
-      .insert([
-        {
-          businessName,
-          businessType,
-          ownerName,
-          whatsapp,
-          email,
-          automations
-        }
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Supabase error:', error);
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Database error. Please try again.' 
-      });
-    }
-
-    // Send welcome email (async, don't wait)
-    sendWelcomeEmail(data);
-
-    res.status(201).json({ 
-      success: true, 
-      message: 'Business registered successfully',
-      data: data 
-    });
-
-  } catch (error) {
-    console.error('Error registering business:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error. Please try again later.' 
-    });
-  }
-});
-
-// 2. Get All Businesses (Admin)
+// Get all businesses
 app.get('/api/businesses', async (req, res) => {
   try {
-    const { businessType, sortBy = 'created_at', order = 'desc', page = 1, limit = 50 } = req.query;
-
-    let query = supabase
+    const { data, error } = await supabase
       .from('businesses')
-      .select('*', { count: 'exact' });
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    // Apply filters
-    if (businessType) {
-      query = query.eq('businessType', businessType);
-    }
+    if (error) throw error;
 
-    // Apply sorting
-    query = query.order(sortBy, { ascending: order === 'asc' });
-
-    // Apply pagination
-    const from = (page - 1) * limit;
-    const to = from + parseInt(limit) - 1;
-    query = query.range(from, to);
-
-    const { data, error, count } = await query;
-
-    if (error) {
-      console.error('Supabase error:', error);
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Database error' 
-      });
-    }
-
-    res.json({
-      success: true,
-      data: data,
-      totalPages: Math.ceil(count / limit),
-      currentPage: parseInt(page),
-      total: count
+    res.json({ 
+      success: true, 
+      data: data || [], 
+      count: data?.length || 0 
     });
-
   } catch (error) {
     console.error('Error fetching businesses:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// 3. Get Single Business
+// Get single business
 app.get('/api/businesses/:id', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -202,198 +70,205 @@ app.get('/api/businesses/:id', async (req, res) => {
       .eq('id', req.params.id)
       .single();
 
-    if (error || !data) {
+    if (error) throw error;
+
+    if (!data) {
       return res.status(404).json({ 
         success: false, 
-        message: 'Business not found' 
+        error: 'Business not found' 
       });
     }
 
-    res.json({ 
-      success: true, 
-      data: data 
-    });
-
+    res.json({ success: true, data });
   } catch (error) {
-    console.error('Error fetching business:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// 4. Update Business
+// Create new business
+app.post('/api/businesses', async (req, res) => {
+  try {
+    const { businessName, businessType, ownerName, whatsapp, email, automations } = req.body;
+
+    // Validation
+    if (!businessName || !businessType || !ownerName || !whatsapp || !email || !automations?.length) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'All fields are required and at least one automation must be selected' 
+      });
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid email format' 
+      });
+    }
+
+    // Insert into Supabase
+    const { data, error } = await supabase
+      .from('businesses')
+      .insert([{
+        businessName,
+        businessType,
+        ownerName,
+        whatsapp,
+        email,
+        automations
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Notify via WhatsApp (connect to your Railway bot)
+    await notifyNewRegistration(data);
+
+    res.status(201).json({ 
+      success: true, 
+      data,
+      message: 'Business registered successfully' 
+    });
+  } catch (error) {
+    console.error('Error creating business:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Update business
 app.put('/api/businesses/:id', async (req, res) => {
   try {
-    const updates = req.body;
-
     const { data, error } = await supabase
       .from('businesses')
-      .update(updates)
+      .update(req.body)
       .eq('id', req.params.id)
       .select()
       .single();
 
-    if (error || !data) {
+    if (error) throw error;
+
+    if (!data) {
       return res.status(404).json({ 
         success: false, 
-        message: 'Business not found or update failed' 
+        error: 'Business not found' 
       });
     }
 
-    res.json({ 
-      success: true, 
-      message: 'Business updated successfully',
-      data: data 
-    });
-
+    res.json({ success: true, data });
   } catch (error) {
-    console.error('Error updating business:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// 5. Delete Business
+// Delete business
 app.delete('/api/businesses/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('businesses')
       .delete()
-      .eq('id', req.params.id)
-      .select()
-      .single();
+      .eq('id', req.params.id);
 
-    if (error || !data) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Business not found' 
-      });
-    }
+    if (error) throw error;
 
     res.json({ 
       success: true, 
       message: 'Business deleted successfully' 
     });
-
   } catch (error) {
-    console.error('Error deleting business:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// 6. Get Analytics/Stats
-app.get('/api/analytics', async (req, res) => {
+// Get statistics
+app.get('/api/stats', async (req, res) => {
   try {
-    // Get all businesses for analytics
-    const { data: businesses, error } = await supabase
+    // Get total businesses
+    const { count: totalBusinesses, error: countError } = await supabase
       .from('businesses')
-      .select('*');
+      .select('*', { count: 'exact', head: true });
 
-    if (error) {
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Database error' 
-      });
-    }
+    if (countError) throw countError;
 
-    const totalBusinesses = businesses.length;
+    // Get all businesses for aggregations
+    const { data: allBusinesses, error: dataError } = await supabase
+      .from('businesses')
+      .select('businessType, automations, created_at');
 
-    // Business type distribution
-    const typeStats = businesses.reduce((acc, business) => {
-      const type = business.businessType;
-      acc[type] = (acc[type] || 0) + 1;
+    if (dataError) throw dataError;
+
+    // Calculate type distribution
+    const typeStats = allBusinesses.reduce((acc, business) => {
+      acc[business.businessType] = (acc[business.businessType] || 0) + 1;
       return acc;
     }, {});
 
-    const typeStatsArray = Object.entries(typeStats)
+    const typeDistribution = Object.entries(typeStats)
       .map(([type, count]) => ({ _id: type, count }))
       .sort((a, b) => b.count - a.count);
 
-    // Automation popularity
-    const automationStats = {};
-    businesses.forEach(business => {
+    // Calculate automation popularity
+    const autoStats = {};
+    allBusinesses.forEach(business => {
       business.automations.forEach(auto => {
-        automationStats[auto] = (automationStats[auto] || 0) + 1;
+        autoStats[auto] = (autoStats[auto] || 0) + 1;
       });
     });
 
-    const automationStatsArray = Object.entries(automationStats)
+    const automationPopularity = Object.entries(autoStats)
       .map(([automation, count]) => ({ _id: automation, count }))
       .sort((a, b) => b.count - a.count);
 
-    // Recent registrations (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentCount = businesses.filter(b => 
-      new Date(b.created_at) >= thirtyDaysAgo
+    // Recent registrations (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const recentRegistrations = allBusinesses.filter(
+      business => new Date(business.created_at) >= sevenDaysAgo
     ).length;
 
     res.json({
       success: true,
       data: {
-        totalBusinesses,
-        recentRegistrations: recentCount,
-        businessTypes: typeStatsArray,
-        automations: automationStatsArray
+        totalBusinesses: totalBusinesses || 0,
+        activeBusinesses: totalBusinesses || 0,
+        totalMessages: 0, // Will be implemented with message_logs table
+        recentRegistrations,
+        typeDistribution,
+        automationPopularity
       }
     });
-
   } catch (error) {
-    console.error('Error fetching analytics:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// 7. Search Businesses
+// Search businesses
 app.get('/api/businesses/search/:query', async (req, res) => {
   try {
     const query = req.params.query.toLowerCase();
-    
-    // Supabase doesn't support OR with ilike directly, so we fetch all and filter
-    const { data: businesses, error } = await supabase
+
+    const { data, error } = await supabase
       .from('businesses')
-      .select('*');
+      .select('*')
+      .or(`businessName.ilike.%${query}%,ownerName.ilike.%${query}%,email.ilike.%${query}%`)
+      .order('created_at', { ascending: false });
 
-    if (error) {
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Database error' 
-      });
-    }
-
-    // Filter businesses based on search query
-    const filtered = businesses.filter(b => 
-      b.businessName?.toLowerCase().includes(query) ||
-      b.ownerName?.toLowerCase().includes(query) ||
-      b.email?.toLowerCase().includes(query) ||
-      b.whatsapp?.includes(query)
-    ).slice(0, 20);
+    if (error) throw error;
 
     res.json({ 
       success: true, 
-      data: filtered 
+      data: data || [], 
+      count: data?.length || 0 
     });
-
   } catch (error) {
-    console.error('Error searching businesses:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// 8. Get Businesses by Type
+// Get businesses by type
 app.get('/api/businesses/type/:type', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -402,56 +277,275 @@ app.get('/api/businesses/type/:type', async (req, res) => {
       .eq('businessType', req.params.type)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Database error' 
-      });
-    }
+    if (error) throw error;
 
     res.json({ 
       success: true, 
-      data: data 
+      data: data || [], 
+      count: data?.length || 0 
     });
-
   } catch (error) {
-    console.error('Error fetching businesses by type:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Health Check
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'CPC API is running with Supabase',
-    timestamp: new Date().toISOString()
-  });
-});
+// ==================== WHATSAPP BOT INTEGRATION ====================
 
-// Error Handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ 
-    success: false, 
-    message: 'Something went wrong!' 
-  });
-});
+// Send message via Railway bot
+async function sendWhatsAppMessage(to, message) {
+  try {
+    const RAILWAY_BOT_URL = process.env.RAILWAY_BOT_URL;
+    
+    if (!RAILWAY_BOT_URL) {
+      console.warn('Railway bot URL not configured');
+      return null;
+    }
 
-// Start Server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 API available at http://localhost:${PORT}`);
-  console.log(`🗄️  Connected to Supabase`);
-});
+    const response = await axios.post(`${RAILWAY_BOT_URL}/send-message`, {
+      to: to.replace(/[^0-9]/g, ''),
+      message: message
+    }, {
+      headers: {
+        'Authorization': `Bearer ${process.env.BOT_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000
+    });
 
-if (require.main === module) {
-  app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));
+    return response.data;
+  } catch (error) {
+    console.error('Error sending WhatsApp message:', error.message);
+    return null;
+  }
 }
 
-module.exports = app;
+// Notify admin about new registration
+async function notifyNewRegistration(business) {
+  const adminNumber = process.env.ADMIN_WHATSAPP || '+92XXXXXXXXX';
+  
+  const message = `🎉 *New Business Registration*
 
+📋 *Business:* ${business.businessName}
+🏢 *Type:* ${business.businessType}
+👤 *Owner:* ${business.ownerName}
+📱 *WhatsApp:* ${business.whatsapp}
+📧 *Email:* ${business.email}
+
+🤖 *Automations Selected:*
+${business.automations.map(a => `• ${a}`).join('\n')}
+
+⏰ *Registered:* ${new Date(business.created_at).toLocaleString()}
+🆔 *ID:* ${business.id}
+
+🔗 Dashboard: ${process.env.FRONTEND_URL}/admin`;
+
+  await sendWhatsAppMessage(adminNumber, message);
+}
+
+// Webhook to receive messages from Railway bot
+app.post('/api/webhook/whatsapp', async (req, res) => {
+  try {
+    const { from, to, message, messageType, timestamp } = req.body;
+
+    // Find business by WhatsApp number
+    const { data: business, error } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('whatsapp', to)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+
+    if (business) {
+      // Log message (you can create a message_logs table later)
+      console.log(`Message logged for business ${business.id}:`, message);
+      
+      // Future: Insert into message_logs table
+      // await supabase.from('message_logs').insert([{...}])
+    }
+
+    res.json({ success: true, message: 'Webhook processed' });
+  } catch (error) {
+    console.error('Webhook error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Activate bot for a business
+app.post('/api/businesses/:id/activate-bot', async (req, res) => {
+  try {
+    const { data: business, error } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+    
+    if (error) throw error;
+
+    if (!business) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Business not found' 
+      });
+    }
+
+    // Send activation request to Railway bot
+    const RAILWAY_BOT_URL = process.env.RAILWAY_BOT_URL;
+    
+    if (RAILWAY_BOT_URL) {
+      await axios.post(`${RAILWAY_BOT_URL}/activate`, {
+        businessId: business.id,
+        whatsapp: business.whatsapp,
+        automations: business.automations,
+        businessName: business.businessName,
+        businessType: business.businessType
+      }, {
+        headers: {
+          'Authorization': `Bearer ${process.env.BOT_API_KEY}`
+        }
+      });
+    }
+
+    // Send confirmation to business owner
+    const confirmMessage = `✅ *Automation Activated!*
+
+Hello ${business.ownerName}! 👋
+
+Your WhatsApp automation for *${business.businessName}* is now active! 🚀
+
+*Active Features:*
+${business.automations.map(a => `✓ ${a}`).join('\n')}
+
+Your customers can now interact with your automated assistant 24/7.
+
+Need help? Contact our support team anytime.
+
+- CPC Team`;
+
+    await sendWhatsAppMessage(business.whatsapp, confirmMessage);
+
+    res.json({ success: true, data: business });
+  } catch (error) {
+    console.error('Error activating bot:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get analytics for a business
+app.get('/api/businesses/:id/analytics', async (req, res) => {
+  try {
+    const { data: business, error } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+    
+    if (error) throw error;
+
+    if (!business) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Business not found' 
+      });
+    }
+
+    // Future: Get message counts from message_logs table
+    const messageCount = 0;
+    const recentMessages = 0;
+
+    res.json({
+      success: true,
+      data: {
+        totalMessages: messageCount,
+        messagesLast24h: recentMessages,
+        botActive: true,
+        lastActivity: business.created_at,
+        automations: business.automations,
+        businessInfo: business
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Bulk operations
+app.post('/api/businesses/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid ids array' 
+      });
+    }
+
+    const { error } = await supabase
+      .from('businesses')
+      .delete()
+      .in('id', ids);
+
+    if (error) throw error;
+
+    res.json({ 
+      success: true, 
+      message: `${ids.length} businesses deleted successfully` 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Export businesses as CSV
+app.get('/api/businesses/export/csv', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('businesses')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Convert to CSV
+    const headers = ['ID', 'Business Name', 'Type', 'Owner', 'WhatsApp', 'Email', 'Automations', 'Created At'];
+    const csvRows = [headers.join(',')];
+
+    data.forEach(business => {
+      const row = [
+        business.id,
+        `"${business.businessName}"`,
+        business.businessType,
+        `"${business.ownerName}"`,
+        business.whatsapp,
+        business.email,
+        `"${business.automations.join(', ')}"`,
+        new Date(business.created_at).toISOString()
+      ];
+      csvRows.push(row.join(','));
+    });
+
+    const csv = csvRows.join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=businesses.csv');
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== START SERVER ====================
+
+app.listen(PORT, () => {
+  console.log(`
+╔═══════════════════════════════════════╗
+║   CPC Backend Server Running          ║
+║   Port: ${PORT}                        ║
+║   Database: Supabase PostgreSQL       ║
+║   Environment: ${process.env.NODE_ENV || 'development'}        ║
+╚═══════════════════════════════════════╝
+  `);
+});
+
+module.exports = app;
