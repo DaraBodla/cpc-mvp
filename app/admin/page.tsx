@@ -199,7 +199,7 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Metrics Tab Content */}
+        {/* Metrics Tab */}
         {activeTab === 'metrics' && (
           <div className="space-y-8">
             {/* Key Metrics Cards */}
@@ -220,9 +220,7 @@ export default function AdminDashboard() {
                   {metrics?.totalSubmissions || 0} submissions / {metrics?.totalVisitors || 0} visitors
                 </p>
                 <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-xs text-gray-500">
-                    % of visitors who complete the onboarding form
-                  </p>
+                  <p className="text-xs text-gray-500">% of visitors who complete the onboarding form</p>
                 </div>
               </div>
 
@@ -242,9 +240,7 @@ export default function AdminDashboard() {
                   {metrics?.uniqueDemoEngagements || 0} engaged / {metrics?.totalSubmissions || 0} onboarded
                 </p>
                 <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-xs text-gray-500">
-                    % of businesses that test the demo bot after onboarding
-                  </p>
+                  <p className="text-xs text-gray-500">% of businesses that test the demo bot after onboarding</p>
                 </div>
               </div>
 
@@ -258,32 +254,28 @@ export default function AdminDashboard() {
                 </div>
                 <p className="text-2xl font-bold text-gray-900 mb-1">
                   {metrics?.automationDistribution && Object.keys(metrics.automationDistribution).length > 0
-                    ? Object.entries(metrics.automationDistribution)
-                        .sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
+                    ? Object.entries(metrics.automationDistribution).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
                     : 'N/A'}
                 </p>
                 <p className="text-gray-600 font-medium">Most Demanded Automation</p>
                 <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-xs text-gray-500">
-                    Most frequently selected automation type
-                  </p>
+                  <p className="text-xs text-gray-500">Most frequently selected automation type</p>
                 </div>
               </div>
             </div>
 
-            {/* Automation Distribution Detail */}
+            {/* Automation Distribution */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
               <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
                 <PieChart size={20} className="text-emerald-600" />
-                Automation Use-Case Distribution (Metric 3 Detail)
+                Automation Use-Case Distribution
               </h3>
-              
               {metrics?.automationDistribution && Object.keys(metrics.automationDistribution).length > 0 ? (
                 <div className="space-y-4">
                   {Object.entries(metrics.automationDistribution)
                     .sort((a, b) => b[1] - a[1])
                     .map(([automation, count]) => {
-                      const total = Object.values(metrics.automationDistribution).reduce((a, b) => a + b, 0)
+                      const total = Object.values(metrics.automationDistribution).reduce((sum, val) => sum + val, 0)
                       const percentage = Math.round((count / total) * 100)
                       return (
                         <div key={automation}>
@@ -293,7 +285,7 @@ export default function AdminDashboard() {
                           </div>
                           <div className="w-full bg-gray-100 rounded-full h-3">
                             <div 
-                              className="bg-gradient-to-r from-emerald-500 to-teal-500 h-3 rounded-full transition-all"
+                              className="bg-gradient-to-r from-emerald-500 to-teal-500 h-3 rounded-full"
                               style={{ width: `${percentage}%` }}
                             />
                           </div>
@@ -302,7 +294,7 @@ export default function AdminDashboard() {
                     })}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">No automation data yet. Data will appear after businesses submit the form.</p>
+                <p className="text-gray-500 text-center py-8">No data yet</p>
               )}
             </div>
 
@@ -328,252 +320,162 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Businesses Tab Content */}
+        {/* Businesses Tab */}
         {activeTab === 'businesses' && (
           <>
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6 hover:shadow-md transition">
-            <div className="flex items-center justify-between mb-3">
-              <div className="bg-emerald-100 p-2 lg:p-3 rounded-xl">
-                <Users className="text-emerald-600" size={20} />
-              </div>
-            </div>
-            <p className="text-2xl lg:text-3xl font-bold text-gray-900">{stats?.totalBusinesses || businesses.length}</p>
-            <p className="text-gray-500 text-xs lg:text-sm mt-1">Businesses</p>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6 hover:shadow-md transition">
-            <div className="flex items-center justify-between mb-3">
-              <div className="bg-blue-100 p-2 lg:p-3 rounded-xl">
-                <Package className="text-blue-600" size={20} />
-              </div>
-            </div>
-            <p className="text-2xl lg:text-3xl font-bold text-gray-900">{stats?.totalOrders || 0}</p>
-            <p className="text-gray-500 text-xs lg:text-sm mt-1">Orders ({stats?.todayOrders || 0} today)</p>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6 hover:shadow-md transition">
-            <div className="flex items-center justify-between mb-3">
-              <div className="bg-purple-100 p-2 lg:p-3 rounded-xl">
-                <TrendingUp className="text-purple-600" size={20} />
-              </div>
-            </div>
-            <p className="text-2xl lg:text-3xl font-bold text-gray-900">{stats?.totalLeads || 0}</p>
-            <p className="text-gray-500 text-xs lg:text-sm mt-1">Leads ({stats?.todayLeads || 0} today)</p>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6 hover:shadow-md transition">
-            <div className="flex items-center justify-between mb-3">
-              <div className="bg-amber-100 p-2 lg:p-3 rounded-xl">
-                <MessageSquare className="text-amber-600" size={20} />
-              </div>
-            </div>
-            <p className="text-2xl lg:text-3xl font-bold text-gray-900">{stats?.totalMessages || 0}</p>
-            <p className="text-gray-500 text-xs lg:text-sm mt-1">Messages</p>
-          </div>
-        </div>
-
-        {/* Analytics Row */}
-        <div className="grid lg:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <BarChart3 size={20} className="text-emerald-600" />
-              Business Types
-            </h3>
-            {stats?.businessesByType && Object.keys(stats.businessesByType).length > 0 ? (
-              <div className="space-y-3">
-                {Object.entries(stats.businessesByType)
-                  .sort((a, b) => b[1] - a[1])
-                  .slice(0, 5)
-                  .map(([type, count]) => {
-                    const total = Object.values(stats.businessesByType).reduce((a, b) => a + b, 0)
-                    const percentage = Math.round((count / total) * 100)
-                    return (
-                      <div key={type}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="capitalize text-gray-700">{type}</span>
-                          <span className="text-gray-500">{count}</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2">
-                          <div 
-                            className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">No data yet</p>
-            )}
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <Zap size={20} className="text-emerald-600" />
-              Popular Automations
-            </h3>
-            {stats?.automationPopularity && Object.keys(stats.automationPopularity).length > 0 ? (
-              <div className="space-y-3">
-                {Object.entries(stats.automationPopularity)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([automation, count]) => (
-                    <div key={automation} className="flex justify-between items-center">
-                      <span className="text-sm text-gray-700 truncate mr-2">{automation}</span>
-                      <span className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-medium">{count}</span>
-                    </div>
-                  ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">No data yet</p>
-            )}
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <Target size={20} className="text-emerald-600" />
-              Status Overview
-            </h3>
-            <div className="space-y-3">
-              {['pending', 'contacted', 'onboarded', 'active'].map(status => {
-                const count = businesses.filter(b => b.status === status).length
-                return (
-                  <div key={status} className="flex justify-between items-center">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[status]} capitalize`}>
-                      {status}
-                    </span>
-                    <span className="text-gray-600 font-medium">{count}</span>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="bg-emerald-100 p-2 lg:p-3 rounded-xl">
+                    <Users className="text-emerald-600" size={20} />
                   </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Businesses Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-4 lg:p-6 border-b border-gray-200">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <h2 className="text-xl font-bold text-gray-900">Business Registrations</h2>
-              
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-full"
-                  />
                 </div>
-
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                >
-                  <option value="">All Types</option>
-                  {uniqueTypes.map(type => (
-                    <option key={type} value={type} className="capitalize">{type}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                >
-                  <option value="">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="contacted">Contacted</option>
-                  <option value="onboarded">Onboarded</option>
-                  <option value="active">Active</option>
-                </select>
+                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{stats?.totalBusinesses || businesses.length}</p>
+                <p className="text-gray-500 text-xs lg:text-sm mt-1">Businesses</p>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="bg-blue-100 p-2 lg:p-3 rounded-xl">
+                    <Package className="text-blue-600" size={20} />
+                  </div>
+                </div>
+                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{stats?.totalOrders || 0}</p>
+                <p className="text-gray-500 text-xs lg:text-sm mt-1">Orders</p>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="bg-purple-100 p-2 lg:p-3 rounded-xl">
+                    <TrendingUp className="text-purple-600" size={20} />
+                  </div>
+                </div>
+                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{stats?.totalLeads || 0}</p>
+                <p className="text-gray-500 text-xs lg:text-sm mt-1">Leads</p>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="bg-amber-100 p-2 lg:p-3 rounded-xl">
+                    <MessageSquare className="text-amber-600" size={20} />
+                  </div>
+                </div>
+                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{stats?.totalMessages || 0}</p>
+                <p className="text-gray-500 text-xs lg:text-sm mt-1">Messages</p>
               </div>
             </div>
-          </div>
 
-          {filteredBusinesses.length === 0 ? (
-            <div className="p-12 text-center">
-              <Users className="mx-auto text-gray-300 mb-4" size={64} />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No businesses found</h3>
-              <p className="text-gray-500">
-                {searchTerm || filterType || filterStatus 
-                  ? 'Try adjusting your filters' 
-                  : 'Businesses will appear here once they register'}
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Business</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Type</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Automations</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredBusinesses.map(business => (
-                    <tr key={business.id} className="hover:bg-gray-50 transition">
-                      <td className="px-6 py-4">
-                        <div>
-                          <p className="font-semibold text-gray-900">{business.business_name}</p>
-                          <p className="text-sm text-gray-500">{business.owner_name}</p>
-                          <p className="text-xs text-gray-400 md:hidden capitalize">{business.business_type}</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 hidden md:table-cell">
-                        <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium capitalize">
-                          {business.business_type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 hidden lg:table-cell">
-                        <div className="flex flex-wrap gap-1 max-w-xs">
-                          {business.automations.slice(0, 2).map((auto, idx) => (
-                            <span key={idx} className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-xs">
-                              {auto.split(' ')[0]}
+            {/* Businesses Table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-4 lg:p-6 border-b border-gray-200">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <h2 className="text-xl font-bold text-gray-900">Business Registrations</h2>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                      <input
+                        type="text"
+                        placeholder="Search..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-full"
+                      />
+                    </div>
+                    <select
+                      value={filterType}
+                      onChange={(e) => setFilterType(e.target.value)}
+                      className="px-4 py-2 border border-gray-200 rounded-xl"
+                    >
+                      <option value="">All Types</option>
+                      {uniqueTypes.map(type => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="px-4 py-2 border border-gray-200 rounded-xl"
+                    >
+                      <option value="">All Status</option>
+                      <option value="pending">Pending</option>
+                      <option value="contacted">Contacted</option>
+                      <option value="onboarded">Onboarded</option>
+                      <option value="active">Active</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {filteredBusinesses.length === 0 ? (
+                <div className="p-12 text-center">
+                  <Users className="mx-auto text-gray-300 mb-4" size={64} />
+                  <p className="text-gray-500">No businesses found</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Business</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Type</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Automations</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredBusinesses.map(business => (
+                        <tr key={business.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <p className="font-semibold text-gray-900">{business.business_name}</p>
+                            <p className="text-sm text-gray-500">{business.owner_name}</p>
+                          </td>
+                          <td className="px-6 py-4 hidden md:table-cell">
+                            <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium capitalize">
+                              {business.business_type}
                             </span>
-                          ))}
-                          {business.automations.length > 2 && (
-                            <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
-                              +{business.automations.length - 2}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <select
-                          value={business.status}
-                          onChange={(e) => updateBusinessStatus(business.id, e.target.value)}
-                          className={`px-3 py-1 rounded-full text-xs font-medium border-0 cursor-pointer ${statusColors[business.status]}`}
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="contacted">Contacted</option>
-                          <option value="onboarded">Onboarded</option>
-                          <option value="active">Active</option>
-                        </select>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => setSelectedBusiness(business)}
-                          className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
-                        >
-                          <Eye size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                          </td>
+                          <td className="px-6 py-4 hidden lg:table-cell">
+                            <div className="flex flex-wrap gap-1 max-w-xs">
+                              {business.automations.slice(0, 2).map((auto, idx) => (
+                                <span key={idx} className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-xs">
+                                  {auto.split(' ')[0]}
+                                </span>
+                              ))}
+                              {business.automations.length > 2 && (
+                                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                                  +{business.automations.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <select
+                              value={business.status}
+                              onChange={(e) => updateBusinessStatus(business.id, e.target.value)}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border-0 cursor-pointer ${statusColors[business.status]}`}
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="contacted">Contacted</option>
+                              <option value="onboarded">Onboarded</option>
+                              <option value="active">Active</option>
+                            </select>
+                          </td>
+                          <td className="px-6 py-4">
+                            <button
+                              onClick={() => setSelectedBusiness(business)}
+                              className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                            >
+                              <Eye size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Detail Modal */}
@@ -585,14 +487,10 @@ export default function AdminDashboard() {
                 <h3 className="text-xl font-bold text-gray-900">{selectedBusiness.business_name}</h3>
                 <p className="text-gray-500 capitalize">{selectedBusiness.business_type}</p>
               </div>
-              <button 
-                onClick={() => setSelectedBusiness(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition"
-              >
+              <button onClick={() => setSelectedBusiness(null)} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X size={20} />
               </button>
             </div>
-            
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -606,7 +504,6 @@ export default function AdminDashboard() {
                   </span>
                 </div>
               </div>
-
               <div>
                 <p className="text-xs text-gray-500 uppercase mb-1">Contact</p>
                 <div className="space-y-2">
@@ -620,9 +517,8 @@ export default function AdminDashboard() {
                   </a>
                 </div>
               </div>
-
               <div>
-                <p className="text-xs text-gray-500 uppercase mb-2">Selected Automations</p>
+                <p className="text-xs text-gray-500 uppercase mb-2">Automations</p>
                 <div className="flex flex-wrap gap-2">
                   {selectedBusiness.automations.map((auto, idx) => (
                     <span key={idx} className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-sm">
@@ -631,35 +527,23 @@ export default function AdminDashboard() {
                   ))}
                 </div>
               </div>
-
               <div>
                 <p className="text-xs text-gray-500 uppercase mb-1">Registered</p>
-                <p className="text-gray-700">
-                  {new Date(selectedBusiness.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </p>
+                <p className="text-gray-700">{new Date(selectedBusiness.created_at).toLocaleDateString()}</p>
               </div>
-
               <div className="pt-4 flex gap-3">
                 <a
                   href={`https://wa.me/${selectedBusiness.whatsapp.replace(/[^0-9]/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 btn-primary text-center flex items-center justify-center gap-2"
+                  className="flex-1 bg-emerald-600 text-white text-center py-2 rounded-xl font-medium hover:bg-emerald-700"
                 >
-                  <MessageSquare size={18} />
                   WhatsApp
                 </a>
                 <a
                   href={`mailto:${selectedBusiness.email}`}
-                  className="flex-1 btn-secondary text-center flex items-center justify-center gap-2"
+                  className="flex-1 border border-gray-300 text-gray-700 text-center py-2 rounded-xl font-medium hover:bg-gray-50"
                 >
-                  <Mail size={18} />
                   Email
                 </a>
               </div>
