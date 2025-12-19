@@ -630,10 +630,13 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="hidden md:flex items-center gap-8">
+            <div className="hidden md:flex items-center gap-6">
               <button onClick={scrollToForm} className="text-gray-700 hover:text-gray-900 font-medium transition-colors">
                 Get Started
               </button>
+              <Link href="/status" className="text-gray-700 hover:text-gray-900 font-medium transition-colors flex items-center gap-1">
+                Check Status
+              </Link>
               <Link href="/admin" className="text-gray-700 hover:text-gray-900 font-medium transition-colors">
                 Dashboard
               </Link>
@@ -665,6 +668,13 @@ export default function Home() {
               >
                 Get Started
               </button>
+              <Link 
+                href="/status" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="block w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition"
+              >
+                Check Status
+              </Link>
               <Link 
                 href="/admin" 
                 onClick={() => setMobileMenuOpen(false)}
