@@ -16,9 +16,9 @@ const SUBSCRIPTION_MONTHLY = 1000 // PKR per month
 
 // Bank Details
 const BANK_DETAILS = {
-  bankName: 'Sadapay',
-  accountTitle: 'Dara Shioh Bodla',
-  accountNumber: '03216320882'
+  bankName: 'Meezan Bank',
+  accountTitle: 'Dara Shikoh Bodla',
+  accountNumber: '98570108179921'
 }
 
 // Generate or retrieve session ID for analytics
@@ -695,7 +695,7 @@ export default function Home() {
               <div className="flex items-center gap-2 mb-6">
                 <span className="bg-emerald-100 text-emerald-800 text-sm font-semibold px-4 py-1.5 rounded-full flex items-center gap-2">
                   <Sparkles size={16} />
-                  Trusted by 500+ businesses
+                  That's how you don't loss customers!
                 </span>
               </div>
               <h1 className="text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight mb-6">
