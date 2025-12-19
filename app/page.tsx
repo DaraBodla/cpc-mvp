@@ -695,7 +695,7 @@ export default function Home() {
               <div className="flex items-center gap-2 mb-6">
                 <span className="bg-emerald-100 text-emerald-800 text-sm font-semibold px-4 py-1.5 rounded-full flex items-center gap-2">
                   <Sparkles size={16} />
-                  That's how you don't loss customers!
+                  That's how you don't lose customers!
                 </span>
               </div>
               <h1 className="text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight mb-6">
