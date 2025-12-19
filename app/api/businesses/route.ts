@@ -33,7 +33,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     
     // Validate required fields
-    const { businessName, businessType, ownerName, whatsapp, email, automations, totalAmount } = body
+    const { 
+      businessName, 
+      businessType, 
+      ownerName, 
+      whatsapp, 
+      email, 
+      automations, 
+      totalAmount,
+      hasSubscription,
+      subscriptionAmount 
+    } = body
     
     if (!businessName || !businessType || !ownerName || !whatsapp || !email) {
       return NextResponse.json(
@@ -82,9 +92,17 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString()
     }
 
-    // Add total_amount if provided
+    // Add optional fields if provided
     if (totalAmount !== undefined) {
       insertData.total_amount = totalAmount
+    }
+
+    if (hasSubscription !== undefined) {
+      insertData.has_subscription = hasSubscription
+    }
+
+    if (subscriptionAmount !== undefined) {
+      insertData.subscription_amount = subscriptionAmount
     }
 
     const { data, error } = await supabase
@@ -95,12 +113,23 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Failed to create business:', error)
-      // If error is about missing column, try without total_amount
-      if (error.message?.includes('total_amount')) {
-        delete insertData.total_amount
+      
+      // If error is about missing columns, try without optional fields
+      if (error.message?.includes('column')) {
+        const basicInsertData = {
+          business_name: businessName,
+          business_type: businessType,
+          owner_name: ownerName,
+          whatsapp,
+          email,
+          automations,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        }
+        
         const { data: retryData, error: retryError } = await supabase
           .from('businesses')
-          .insert(insertData)
+          .insert(basicInsertData)
           .select()
           .single()
         

@@ -6,18 +6,19 @@ import {
   Send, MessageSquare, CheckCircle, BarChart3, Users, Zap, Clock, 
   Smartphone, TrendingUp, Bot, Package, Calendar, MessageCircle, 
   ArrowRight, Menu, X, Shield, Award, Target, Sparkles, Upload, 
-  CreditCard, Copy, Image, Building, AlertCircle
+  CreditCard, Copy, Image, Building, AlertCircle, RefreshCw, Gift
 } from 'lucide-react'
 
 const DEMO_WHATSAPP = process.env.NEXT_PUBLIC_DEMO_WHATSAPP || '+923186210719'
-const PRICE_PER_FEATURE = 2000 // PKR - Changed to 2000
+const PRICE_PER_FEATURE = 2000 // PKR
 const ADVANCE_PAYMENT = 2000 // PKR - Fixed advance payment
+const SUBSCRIPTION_MONTHLY = 1000 // PKR per month
 
 // Bank Details
 const BANK_DETAILS = {
-  bankName: 'Meezan Bank',
-  accountTitle: 'Dara Shikoh Bodla',
-  accountNumber: '98570108179921'
+  bankName: 'Sadapay',
+  accountTitle: 'Dara Shioh Bodla',
+  accountNumber: '03216320882'
 }
 
 // Generate or retrieve session ID for analytics
@@ -57,6 +58,7 @@ interface FormData {
   whatsapp: string
   email: string
   automations: string[]
+  hasSubscription: boolean
 }
 
 const automationOptions = [
@@ -88,7 +90,8 @@ export default function Home() {
     ownerName: '',
     whatsapp: '',
     email: '',
-    automations: []
+    automations: [],
+    hasSubscription: false
   })
   
   // Payment states
@@ -98,7 +101,7 @@ export default function Home() {
   const [uploadingPayment, setUploadingPayment] = useState(false)
   const [paymentSubmitted, setPaymentSubmitted] = useState(false)
 
-  // Calculate total price
+  // Calculate total price (subscription is free first month, so not counted)
   const totalPrice = formData.automations.length * PRICE_PER_FEATURE
 
   // Track page view on mount
@@ -130,6 +133,14 @@ export default function Home() {
     }))
   }
 
+  const handleSubscriptionToggle = () => {
+    handleFormStart()
+    setFormData(prev => ({
+      ...prev,
+      hasSubscription: !prev.hasSubscription
+    }))
+  }
+
   const handleSubmit = async () => {
     if (!formData.businessName || !formData.businessType || !formData.ownerName || 
         !formData.whatsapp || !formData.email || formData.automations.length === 0) {
@@ -144,7 +155,9 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          totalAmount: formData.automations.length * PRICE_PER_FEATURE
+          totalAmount: formData.automations.length * PRICE_PER_FEATURE,
+          hasSubscription: formData.hasSubscription,
+          subscriptionAmount: formData.hasSubscription ? SUBSCRIPTION_MONTHLY : 0
         })
       })
 
@@ -157,7 +170,11 @@ export default function Home() {
         trackEvent('form_submit', { 
           page: 'landing',
           business_id: businessId,
-          metadata: { automations: formData.automations, totalAmount: formData.automations.length * PRICE_PER_FEATURE }
+          metadata: { 
+            automations: formData.automations, 
+            totalAmount: formData.automations.length * PRICE_PER_FEATURE,
+            hasSubscription: formData.hasSubscription
+          }
         })
         
         // Track each automation selection
@@ -165,6 +182,14 @@ export default function Home() {
           trackEvent('automation_selected', {
             automation_type: automation,
             business_id: businessId
+          })
+        }
+
+        // Track subscription if selected
+        if (formData.hasSubscription) {
+          trackEvent('subscription_selected', {
+            business_id: businessId,
+            metadata: { monthly_amount: SUBSCRIPTION_MONTHLY }
           })
         }
         
@@ -255,7 +280,8 @@ export default function Home() {
       ownerName: '',
       whatsapp: '',
       email: '',
-      automations: []
+      automations: [],
+      hasSubscription: false
     })
     setSubmitted(false)
     setSubmittedBusinessId(null)
@@ -297,23 +323,58 @@ export default function Home() {
               <div className="bg-gray-50 rounded-2xl p-6 mb-6">
                 <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <Package size={20} />
-                  Selected Features
+                  Order Summary
                 </h3>
+                
+                {/* One-time Features */}
                 <div className="space-y-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">One-time Setup</p>
                   {formData.automations.map((automation, idx) => (
-                    <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-200 last:border-0">
+                    <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-200">
                       <span className="text-gray-700">{automation}</span>
                       <span className="font-medium text-gray-900">Rs {PRICE_PER_FEATURE.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
+
+                {/* Subscription */}
+                {formData.hasSubscription && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Monthly Subscription</p>
+                    <div className="flex justify-between items-center py-2 bg-emerald-50 rounded-lg px-3 border border-emerald-200">
+                      <div className="flex items-center gap-2">
+                        <RefreshCw size={16} className="text-emerald-600" />
+                        <span className="text-gray-700">Premium Support & Updates</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-gray-400 line-through text-sm">Rs {SUBSCRIPTION_MONTHLY.toLocaleString()}/mo</span>
+                        <div className="flex items-center gap-1">
+                          <Gift size={14} className="text-emerald-600" />
+                          <span className="font-bold text-emerald-600">FREE (1st month)</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      Rs {SUBSCRIPTION_MONTHLY.toLocaleString()}/month starting from 2nd month
+                    </p>
+                  </div>
+                )}
+
+                {/* Totals */}
                 <div className="mt-4 pt-4 border-t-2 border-gray-300">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-600">Total Bill</span>
+                    <span className="text-gray-600">Total Bill (One-time)</span>
                     <span className="font-bold text-gray-900">Rs {totalPrice.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold text-gray-900">Advance Payment (Current Bill)</span>
+                  {formData.hasSubscription && (
+                    <div className="flex justify-between items-center mb-2 text-sm">
+                      <span className="text-gray-500">Monthly (after 1st month)</span>
+                      <span className="text-gray-600">Rs {SUBSCRIPTION_MONTHLY.toLocaleString()}/mo</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-200">
+                    <span className="text-lg font-bold text-gray-900">Pay Now (Advance)</span>
                     <span className="text-2xl font-bold text-emerald-600">Rs {ADVANCE_PAYMENT.toLocaleString()}</span>
                   </div>
                 </div>
@@ -326,7 +387,11 @@ export default function Home() {
                   <div>
                     <p className="font-semibold text-amber-800">Important Notice</p>
                     <p className="text-sm text-amber-700 mt-1">
-                      This is only the <strong>advance payment of Rs 2,000</strong>. The remaining balance of Rs {(totalPrice - ADVANCE_PAYMENT).toLocaleString()} will be due upon completion. You will be placed in our waiting list and our team will contact you shortly.
+                      This is only the <strong>advance payment of Rs {ADVANCE_PAYMENT.toLocaleString()}</strong>. The remaining balance of Rs {(totalPrice - ADVANCE_PAYMENT).toLocaleString()} will be due upon completion.
+                      {formData.hasSubscription && (
+                        <span> Your subscription is <strong>FREE for the first month</strong>, then Rs {SUBSCRIPTION_MONTHLY.toLocaleString()}/month.</span>
+                      )}
+                      {' '}You will be placed in our waiting list.
                     </p>
                   </div>
                 </div>
@@ -435,7 +500,7 @@ export default function Home() {
               </button>
 
               <p className="text-center text-sm text-gray-500 mt-4">
-                You&apos;ll be added to our waiting list. Our team will contact you within 24 hours to proceed.
+                You&apos;ll be added to our waiting list. Our team will contact you within 24 hours.
               </p>
             </div>
           </div>
@@ -464,6 +529,12 @@ export default function Home() {
               <p className="text-sm text-gray-400 mt-1">
                 Remaining: Rs {(totalPrice - ADVANCE_PAYMENT).toLocaleString()} (due on completion)
               </p>
+              {formData.hasSubscription && (
+                <p className="text-sm text-emerald-600 mt-2 flex items-center justify-center gap-1">
+                  <Gift size={14} />
+                  Premium subscription: First month FREE!
+                </p>
+              )}
             </div>
 
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-8 mb-8">
@@ -624,7 +695,7 @@ export default function Home() {
               <div className="flex items-center gap-2 mb-6">
                 <span className="bg-emerald-100 text-emerald-800 text-sm font-semibold px-4 py-1.5 rounded-full flex items-center gap-2">
                   <Sparkles size={16} />
-                  That's how you don't lose customers!
+                  Trusted by 500+ businesses
                 </span>
               </div>
               <h1 className="text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight mb-6">
@@ -716,7 +787,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* CTA Banner - Changed text */}
+      {/* CTA Banner */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 text-white text-center">
@@ -854,6 +925,7 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Automation Features */}
             <div className="mt-8">
               <label className="block text-sm font-semibold text-gray-700 mb-4">
                 Select Automation Features <span className="text-red-500">*</span>
@@ -891,24 +963,72 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              
-              {/* Selected features summary */}
-              {formData.automations.length > 0 && (
-                <div className="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
-                  <div className="flex justify-between items-center">
-                    <span className="text-emerald-800 font-medium">
-                      {formData.automations.length} feature{formData.automations.length > 1 ? 's' : ''} selected
-                    </span>
-                    <span className="text-emerald-800 font-bold">
-                      Total: Rs {totalPrice.toLocaleString()}
+            </div>
+
+            {/* Subscription Feature */}
+            <div className="mt-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-4">
+                Optional Subscription
+              </label>
+              <button
+                type="button"
+                onClick={handleSubscriptionToggle}
+                className={`w-full relative flex items-start gap-4 p-5 rounded-xl border-2 transition-all text-left ${
+                  formData.hasSubscription
+                    ? 'border-purple-500 bg-purple-50 shadow-md'
+                    : 'border-gray-200 hover:border-gray-300 bg-white hover:shadow-sm'
+                }`}
+              >
+                <div className="bg-purple-100 p-2 rounded-lg">
+                  <RefreshCw className="text-purple-600" size={24} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-900">Premium Support & Updates</p>
+                      <span className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Gift size={10} />
+                        1st Month FREE
+                      </span>
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                      formData.hasSubscription
+                        ? 'bg-purple-200 text-purple-800'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      Rs {SUBSCRIPTION_MONTHLY.toLocaleString()}/mo
                     </span>
                   </div>
-                  <p className="text-xs text-emerald-600 mt-1">
-                    Advance payment: Rs {ADVANCE_PAYMENT.toLocaleString()} • Remaining on completion
+                  <p className="text-sm text-gray-600 mt-1">Priority support, feature updates, and monthly optimization reports</p>
+                  <p className="text-xs text-purple-600 mt-2 flex items-center gap-1">
+                    <AlertCircle size={12} />
+                    First month completely free! Billing starts from 2nd month.
                   </p>
                 </div>
-              )}
+                {formData.hasSubscription && (
+                  <CheckCircle className="text-purple-600 absolute top-4 right-4" size={20} />
+                )}
+              </button>
             </div>
+              
+            {/* Selected features summary */}
+            {formData.automations.length > 0 && (
+              <div className="mt-6 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-emerald-800 font-medium">
+                    {formData.automations.length} feature{formData.automations.length > 1 ? 's' : ''} selected
+                    {formData.hasSubscription && ' + Subscription'}
+                  </span>
+                  <span className="text-emerald-800 font-bold">
+                    Total: Rs {totalPrice.toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-600 mt-1">
+                  Advance payment: Rs {ADVANCE_PAYMENT.toLocaleString()} • Remaining on completion
+                  {formData.hasSubscription && ' • Subscription: 1st month FREE'}
+                </p>
+              </div>
+            )}
 
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
               <button
