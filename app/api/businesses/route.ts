@@ -7,127 +7,114 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!
 )
 
-// POST - Track analytics event
-export async function POST(request: NextRequest) {
+// GET - Fetch all businesses
+export async function GET() {
   try {
-    const body = await request.json()
-    const { event, page, automation_type, source, session_id, business_id, metadata } = body
-
-    if (!event) {
-      return NextResponse.json({ error: 'Event is required' }, { status: 400 })
-    }
-
-    const { error } = await supabase.from('analytics_events').insert({
-      event,
-      page: page || null,
-      automation_type: automation_type || null,
-      source: source || null,
-      session_id: session_id || null,
-      business_id: business_id || null,
-      metadata: metadata || {},
-      created_at: new Date().toISOString()
-    })
+    const { data: businesses, error } = await supabase
+      .from('businesses')
+      .select('*')
+      .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Analytics insert error:', error)
+      console.error('Failed to fetch businesses:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ businesses: businesses || [] })
   } catch (error) {
-    console.error('Analytics error:', error)
-    return NextResponse.json({ error: 'Failed to track event' }, { status: 500 })
+    console.error('API error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-// GET - Get analytics metrics
-export async function GET(request: NextRequest) {
+// POST - Create new business
+export async function POST(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const startDate = searchParams.get('start') || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-    const endDate = searchParams.get('end') || new Date().toISOString()
+    const body = await request.json()
+    
+    // Validate required fields
+    const { businessName, businessType, ownerName, whatsapp, email, automations, totalAmount } = body
+    
+    if (!businessName || !businessType || !ownerName || !whatsapp || !email) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
 
-    // Get all events in date range
-    const { data: events, error } = await supabase
-      .from('analytics_events')
-      .select('*')
-      .gte('created_at', startDate)
-      .lte('created_at', endDate)
+    if (!automations || automations.length === 0) {
+      return NextResponse.json(
+        { error: 'Please select at least one automation' },
+        { status: 400 }
+      )
+    }
+
+    // Check for duplicate email
+    const { data: existingEmail } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('email', email)
+      .limit(1)
+
+    // Check for duplicate whatsapp
+    const { data: existingPhone } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('whatsapp', whatsapp)
+      .limit(1)
+
+    if ((existingEmail && existingEmail.length > 0) || (existingPhone && existingPhone.length > 0)) {
+      return NextResponse.json(
+        { error: 'A business with this email or WhatsApp number already exists' },
+        { status: 409 }
+      )
+    }
+
+    // Insert new business
+    const insertData: Record<string, unknown> = {
+      business_name: businessName,
+      business_type: businessType,
+      owner_name: ownerName,
+      whatsapp,
+      email,
+      automations,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    }
+
+    // Add total_amount if provided
+    if (totalAmount !== undefined) {
+      insertData.total_amount = totalAmount
+    }
+
+    const { data, error } = await supabase
+      .from('businesses')
+      .insert(insertData)
+      .select()
+      .single()
 
     if (error) {
-      console.error('Analytics fetch error:', error)
+      console.error('Failed to create business:', error)
+      // If error is about missing column, try without total_amount
+      if (error.message?.includes('total_amount')) {
+        delete insertData.total_amount
+        const { data: retryData, error: retryError } = await supabase
+          .from('businesses')
+          .insert(insertData)
+          .select()
+          .single()
+        
+        if (retryError) {
+          return NextResponse.json({ error: retryError.message }, { status: 500 })
+        }
+        return NextResponse.json({ business: retryData, message: 'Business registered successfully' })
+      }
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    if (!events || events.length === 0) {
-      return NextResponse.json({
-        conversionRate: 0,
-        demoBotTriggerRate: 0,
-        paymentUploadRate: 0,
-        automationDistribution: {},
-        totalVisitors: 0,
-        totalSubmissions: 0,
-        totalDemoClicks: 0,
-        totalDemoMessages: 0,
-        totalPaymentUploads: 0,
-        uniqueDemoEngagements: 0
-      })
-    }
-
-    // Calculate metrics
-    const pageViews = events.filter(e => e.event === 'page_view' && e.page === 'landing')
-    const uniqueVisitors = new Set(pageViews.map(e => e.session_id).filter(Boolean)).size
-    
-    const formSubmits = events.filter(e => e.event === 'form_submit')
-    const totalSubmissions = formSubmits.length
-
-    const demoClicks = events.filter(e => e.event === 'demo_bot_click')
-    const demoMessages = events.filter(e => e.event === 'demo_bot_message')
-    
-    const paymentUploads = events.filter(e => e.event === 'payment_screenshot_uploaded')
-    const totalPaymentUploads = paymentUploads.length
-    
-    // Unique businesses that clicked demo after submitting
-    const submittedBusinessIds = new Set(formSubmits.map(e => e.business_id).filter(Boolean))
-    const demoClicksAfterSubmit = demoClicks.filter(e => e.business_id && submittedBusinessIds.has(e.business_id))
-    const uniqueDemoEngagements = new Set(demoClicksAfterSubmit.map(e => e.business_id)).size
-
-    // Automation distribution
-    const automationEvents = events.filter(e => e.event === 'automation_selected')
-    const automationDistribution: Record<string, number> = {}
-    for (const event of automationEvents) {
-      const type = event.automation_type || 'unknown'
-      automationDistribution[type] = (automationDistribution[type] || 0) + 1
-    }
-
-    // Calculate rates
-    const conversionRate = uniqueVisitors > 0 
-      ? (totalSubmissions / uniqueVisitors) * 100 
-      : 0
-
-    const demoBotTriggerRate = totalSubmissions > 0 
-      ? (uniqueDemoEngagements / totalSubmissions) * 100 
-      : 0
-
-    const paymentUploadRate = totalSubmissions > 0 
-      ? (totalPaymentUploads / totalSubmissions) * 100 
-      : 0
-
-    return NextResponse.json({
-      conversionRate: Math.round(conversionRate * 100) / 100,
-      demoBotTriggerRate: Math.round(demoBotTriggerRate * 100) / 100,
-      paymentUploadRate: Math.round(paymentUploadRate * 100) / 100,
-      automationDistribution,
-      totalVisitors: uniqueVisitors,
-      totalSubmissions,
-      totalDemoClicks: demoClicks.length,
-      totalDemoMessages: demoMessages.length,
-      totalPaymentUploads,
-      uniqueDemoEngagements
-    })
-
+    return NextResponse.json({ business: data, message: 'Business registered successfully' })
   } catch (error) {
-    console.error('Analytics error:', error)
-    return NextResponse.json({ error: 'Failed to get metrics' }, { status: 500 })
+    console.error('API error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
