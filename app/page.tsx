@@ -6,11 +6,12 @@ import {
   Send, MessageSquare, CheckCircle, BarChart3, Users, Zap, Clock, 
   Smartphone, TrendingUp, Bot, Package, Calendar, MessageCircle, 
   ArrowRight, Menu, X, Shield, Award, Target, Sparkles, Upload, 
-  CreditCard, Copy, Image, Building
+  CreditCard, Copy, Image, Building, AlertCircle
 } from 'lucide-react'
 
 const DEMO_WHATSAPP = process.env.NEXT_PUBLIC_DEMO_WHATSAPP || '+923186210719'
-const PRICE_PER_FEATURE = 3000 // PKR
+const PRICE_PER_FEATURE = 2000 // PKR - Changed to 2000
+const ADVANCE_PAYMENT = 2000 // PKR - Fixed advance payment
 
 // Bank Details
 const BANK_DETAILS = {
@@ -59,11 +60,11 @@ interface FormData {
 }
 
 const automationOptions = [
-  { id: 'FAQ bot', icon: '💬', label: 'FAQ Automation', desc: 'Instant answers to common questions' },
-  { id: 'Order/Booking automation', icon: '📅', label: 'Booking System', desc: 'Automated appointment scheduling' },
-  { id: 'Catalogue bot', icon: '📦', label: 'Product Catalog', desc: 'Interactive product showcase' },
-  { id: 'Lead capture', icon: '📊', label: 'Lead Capture', desc: 'Automated lead collection' },
-  { id: 'Follow-up messages', icon: '🔔', label: 'Follow-up System', desc: 'Scheduled reminders & updates' }
+  { id: 'FAQ bot', icon: '💬', label: 'FAQ Automation', desc: 'Instant answers to common questions', price: PRICE_PER_FEATURE },
+  { id: 'Order/Booking automation', icon: '📅', label: 'Booking System', desc: 'Automated appointment scheduling', price: PRICE_PER_FEATURE },
+  { id: 'Catalogue bot', icon: '📦', label: 'Product Catalog', desc: 'Interactive product showcase', price: PRICE_PER_FEATURE },
+  { id: 'Lead capture', icon: '📊', label: 'Lead Capture', desc: 'Automated lead collection', price: PRICE_PER_FEATURE },
+  { id: 'Follow-up messages', icon: '🔔', label: 'Follow-up System', desc: 'Scheduled reminders & updates', price: PRICE_PER_FEATURE }
 ]
 
 const features = [
@@ -73,13 +74,6 @@ const features = [
   { icon: TrendingUp, title: 'Lead Management', desc: 'Capture and qualify leads automatically with intelligent conversation flows' },
   { icon: Clock, title: 'Smart Follow-ups', desc: 'Scheduled messages and reminders to keep customers engaged' },
   { icon: BarChart3, title: 'Analytics Dashboard', desc: 'Real-time insights on engagement, conversions, and customer behavior' }
-]
-
-const stats = [
-  { value: '500+', label: 'Active Businesses' },
-  { value: '50K+', label: 'Messages Automated' },
-  { value: '98%', label: 'Client Satisfaction' },
-  { value: '24hrs', label: 'Setup Time' }
 ]
 
 export default function Home() {
@@ -179,7 +173,7 @@ export default function Home() {
         setSubmitted(true)
       } else {
         const error = await response.json()
-        alert(error.message || 'Submission failed. Please try again.')
+        alert(error.message || error.error || 'Submission failed. Please try again.')
       }
     } catch (error) {
       console.error('Submission error:', error)
@@ -218,7 +212,7 @@ export default function Home() {
       const formDataUpload = new FormData()
       formDataUpload.append('screenshot', paymentScreenshot)
       formDataUpload.append('business_id', submittedBusinessId.toString())
-      formDataUpload.append('amount', totalPrice.toString())
+      formDataUpload.append('amount', ADVANCE_PAYMENT.toString())
 
       const response = await fetch('/api/payments', {
         method: 'POST',
@@ -229,7 +223,7 @@ export default function Home() {
         // Track payment screenshot upload
         trackEvent('payment_screenshot_uploaded', {
           business_id: submittedBusinessId,
-          metadata: { amount: totalPrice, automations_count: formData.automations.length }
+          metadata: { amount: ADVANCE_PAYMENT, automations_count: formData.automations.length }
         })
         
         setPaymentSubmitted(true)
@@ -289,10 +283,13 @@ export default function Home() {
                   <CreditCard className="text-blue-600" size={40} />
                 </div>
                 <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-                  Complete Payment
+                  Join the Waitlist
                 </h2>
                 <p className="text-gray-600">
                   Thank you, <span className="font-semibold">{formData.businessName}</span>!
+                </p>
+                <p className="text-emerald-600 font-medium mt-2">
+                  Pay the advance to secure your spot
                 </p>
               </div>
 
@@ -300,7 +297,7 @@ export default function Home() {
               <div className="bg-gray-50 rounded-2xl p-6 mb-6">
                 <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <Package size={20} />
-                  Order Summary
+                  Selected Features
                 </h3>
                 <div className="space-y-3">
                   {formData.automations.map((automation, idx) => (
@@ -310,9 +307,28 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 pt-4 border-t-2 border-gray-300 flex justify-between items-center">
-                  <span className="text-lg font-bold text-gray-900">Total Amount</span>
-                  <span className="text-2xl font-bold text-emerald-600">Rs {totalPrice.toLocaleString()}</span>
+                <div className="mt-4 pt-4 border-t-2 border-gray-300">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-600">Total Bill</span>
+                    <span className="font-bold text-gray-900">Rs {totalPrice.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-bold text-gray-900">Advance Payment (Current Bill)</span>
+                    <span className="text-2xl font-bold text-emerald-600">Rs {ADVANCE_PAYMENT.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Important Notice */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
+                  <div>
+                    <p className="font-semibold text-amber-800">Important Notice</p>
+                    <p className="text-sm text-amber-700 mt-1">
+                      This is only the <strong>advance payment of Rs 2,000</strong>. The remaining balance of Rs {(totalPrice - ADVANCE_PAYMENT).toLocaleString()} will be due upon completion. You will be placed in our waiting list and our team will contact you shortly.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -347,9 +363,9 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                  <p className="text-sm text-amber-800">
-                    <strong>Important:</strong> Please include your business name &quot;{formData.businessName}&quot; in the payment reference.
+                <div className="mt-4 p-3 bg-white/50 border border-emerald-200 rounded-xl">
+                  <p className="text-sm text-emerald-800">
+                    <strong>Reference:</strong> Please include &quot;{formData.businessName}&quot; in the payment reference.
                   </p>
                 </div>
               </div>
@@ -413,13 +429,13 @@ export default function Home() {
                 ) : (
                   <>
                     <CheckCircle size={20} />
-                    Submit Payment Proof
+                    Join Waitlist - Rs {ADVANCE_PAYMENT.toLocaleString()}
                   </>
                 )}
               </button>
 
               <p className="text-center text-sm text-gray-500 mt-4">
-                Our team will verify your payment and activate your account within 24 hours.
+                You&apos;ll be added to our waiting list. Our team will contact you within 24 hours to proceed.
               </p>
             </div>
           </div>
@@ -437,16 +453,17 @@ export default function Home() {
                 <CheckCircle className="text-emerald-600" size={56} />
               </div>
               <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-                {paymentSubmitted ? 'Payment Received!' : 'Request Received!'}
+                You&apos;re on the Waitlist!
               </h2>
               <p className="text-xl text-gray-600">
                 Thank you, <span className="font-bold text-emerald-600">{formData.businessName}</span>
               </p>
-              {paymentSubmitted && (
-                <p className="text-gray-500 mt-2">
-                  Amount: <span className="font-semibold">Rs {totalPrice.toLocaleString()}</span>
-                </p>
-              )}
+              <p className="text-gray-500 mt-2">
+                Advance Paid: <span className="font-semibold">Rs {ADVANCE_PAYMENT.toLocaleString()}</span>
+              </p>
+              <p className="text-sm text-gray-400 mt-1">
+                Remaining: Rs {(totalPrice - ADVANCE_PAYMENT).toLocaleString()} (due on completion)
+              </p>
             </div>
 
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-8 mb-8">
@@ -470,15 +487,15 @@ export default function Home() {
             </div>
 
             <div className="bg-gray-50 rounded-2xl p-8 mb-8 text-left">
-              <h4 className="font-bold text-gray-900 mb-6 text-xl text-center">Next Steps</h4>
+              <h4 className="font-bold text-gray-900 mb-6 text-xl text-center">What Happens Next?</h4>
               <div className="space-y-5">
                 <div className="flex items-start gap-4">
                   <div className="bg-emerald-100 rounded-full p-2 mt-1 flex-shrink-0">
                     <CheckCircle className="text-emerald-600" size={20} />
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 text-lg">1. {paymentSubmitted ? 'Payment Verification' : 'Test the Demo'}</p>
-                    <p className="text-gray-600">{paymentSubmitted ? 'We\'ll verify your payment within 24 hours' : 'Experience our automation capabilities firsthand'}</p>
+                    <p className="font-semibold text-gray-900 text-lg">1. Payment Verification</p>
+                    <p className="text-gray-600">We&apos;ll verify your advance payment within 24 hours</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -487,7 +504,7 @@ export default function Home() {
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900 text-lg">2. We&apos;ll Contact You</p>
-                    <p className="text-gray-600">Our team will reach out via WhatsApp to discuss your needs</p>
+                    <p className="text-gray-600">Our team will reach out via WhatsApp to discuss your requirements</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -495,8 +512,8 @@ export default function Home() {
                     <Zap className="text-purple-600" size={20} />
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 text-lg">3. Custom Setup</p>
-                    <p className="text-gray-600">We&apos;ll configure your personalized automation system</p>
+                    <p className="font-semibold text-gray-900 text-lg">3. Custom Setup & Final Payment</p>
+                    <p className="text-gray-600">Once your automation is ready, pay the remaining balance and go live!</p>
                   </div>
                 </div>
               </div>
@@ -599,147 +616,145 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <div className="animate-fade-in">
-            <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full text-sm font-semibold mb-8 border border-emerald-100">
-              <Sparkles size={16} />
-              Enterprise-Grade Automation
-            </div>
-            
-            <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-              Transform Your Business with
-              <span className="block mt-2 gradient-text">
-                WhatsApp AI Automation
-              </span>
-            </h1>
-            
-            <p className="text-xl text-gray-600 mb-10 leading-relaxed">
-              Deploy intelligent WhatsApp automation that scales with your business. 
-              Reduce response time by 90% and increase customer satisfaction effortlessly.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 mb-12">
-              <button 
-                onClick={scrollToForm} 
-                className="btn-primary flex items-center justify-center gap-2 text-lg group"
-              >
-                Get Started
-                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-              </button>
-              <a 
-                href={`https://wa.me/${DEMO_WHATSAPP.replace(/[^0-9]/g, '')}?text=Demo%20Request`} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                onClick={() => handleDemoClick('hero_button')}
-                className="btn-secondary flex items-center justify-center gap-2 text-lg"
-              >
-                <Bot size={20} />
-                View Demo
-              </a>
-            </div>
-
-            <div className="grid grid-cols-3 gap-6 pt-8 border-t border-gray-200">
-              {[
-                { icon: Shield, label: 'Secure & Reliable' },
-                { icon: Award, label: '24/7 Support' },
-                { icon: Target, label: 'Easy Setup' }
-              ].map((item, idx) => (
-                <div key={idx} className="animate-slide-up" style={{ animationDelay: `${idx * 100}ms` }}>
-                  <div className="flex items-center gap-2 text-emerald-600 mb-1">
-                    <item.icon size={20} />
-                  </div>
-                  <p className="text-sm font-semibold text-gray-900">{item.label}</p>
+      <div className="relative overflow-hidden mesh-bg">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/80 via-white/50 to-teal-50/80"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="animate-fade-in">
+              <div className="flex items-center gap-2 mb-6">
+                <span className="bg-emerald-100 text-emerald-800 text-sm font-semibold px-4 py-1.5 rounded-full flex items-center gap-2">
+                  <Sparkles size={16} />
+                  Trusted by 500+ businesses
+                </span>
+              </div>
+              <h1 className="text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight mb-6">
+                Automate Your 
+                <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent"> WhatsApp </span>
+                Business
+              </h1>
+              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+                Transform your customer communication with intelligent automation. Instant responses, smart bookings, and seamless sales — all through WhatsApp.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button 
+                  onClick={scrollToForm} 
+                  className="btn-primary flex items-center justify-center gap-2 group text-lg"
+                >
+                  Get Started Now
+                  <ArrowRight className="group-hover:translate-x-1 transition-transform" size={20} />
+                </button>
+                <a
+                  href={`https://wa.me/${DEMO_WHATSAPP.replace(/[^0-9]/g, '')}?text=Demo%20Request`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => handleDemoClick('hero_section')}
+                  className="btn-secondary flex items-center justify-center gap-2 text-lg"
+                >
+                  <Bot size={20} />
+                  View Demo
+                </a>
+              </div>
+              
+              {/* Trust indicators */}
+              <div className="mt-10 flex items-center gap-6 text-sm text-gray-500">
+                <div className="flex items-center gap-2">
+                  <Shield size={18} className="text-emerald-600" />
+                  <span>Secure & Private</span>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Chat Demo Card */}
-          <div className="relative animate-slide-up animate-delay-200">
-            <div className="bg-gradient-to-br from-emerald-600 to-teal-600 rounded-3xl p-1 shadow-2xl">
-              <div className="bg-white rounded-3xl p-8">
-                <div className="space-y-5">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-gray-100 p-3 rounded-xl">
-                      <MessageCircle className="text-gray-600" size={24} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900 mb-1">Customer Inquiry</p>
-                      <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
-                        What are your business hours and services?
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4">
-                    <div className="bg-gradient-to-br from-emerald-100 to-teal-100 p-3 rounded-xl">
-                      <Bot className="text-emerald-600" size={24} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900 mb-1">AI Assistant</p>
-                      <p className="text-sm text-gray-700 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg p-3 border border-emerald-100">
-                        We&apos;re open Mon-Sat, 9AM-6PM. We offer consultation, booking, and product catalog. How can I assist you today?
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <button className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-3 rounded-xl text-sm font-medium transition-colors border border-gray-200">
-                      📅 Book Appointment
-                    </button>
-                    <button className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-3 rounded-xl text-sm font-medium transition-colors border border-gray-200">
-                      📦 View Catalog
-                    </button>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Award size={18} className="text-emerald-600" />
+                  <span>24/7 Support</span>
                 </div>
               </div>
             </div>
-            <div className="absolute -bottom-6 -right-6 bg-gradient-to-r from-amber-400 to-orange-400 text-white px-6 py-3 rounded-xl font-bold shadow-xl animate-bounce-gentle">
-              ⚡ Instant Response
+
+            {/* Chat Preview */}
+            <div className="relative animate-slide-up hidden lg:block">
+              <div className="absolute -top-10 -left-10 w-72 h-72 bg-emerald-200 rounded-full opacity-40 blur-3xl"></div>
+              <div className="absolute -bottom-10 -right-10 w-72 h-72 bg-teal-200 rounded-full opacity-40 blur-3xl"></div>
+              <div className="relative bg-white rounded-3xl shadow-2xl p-6 border border-gray-200">
+                <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
+                  <div className="bg-gradient-to-br from-emerald-600 to-teal-600 p-2 rounded-full">
+                    <Bot className="text-white" size={24} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">CPC Business Bot</p>
+                    <p className="text-xs text-emerald-600 flex items-center gap-1">
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                      Online
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-4 space-y-4">
+                  <div className="flex gap-3">
+                    <div className="bg-gray-100 rounded-2xl rounded-tl-none p-4 max-w-xs">
+                      <p className="text-gray-700">Hi! 👋 Welcome to our store. How can I help you today?</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 justify-end">
+                    <div className="bg-emerald-600 text-white rounded-2xl rounded-tr-none p-4 max-w-xs">
+                      <p>I&apos;d like to book an appointment</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="bg-gray-100 rounded-2xl rounded-tl-none p-4 max-w-xs">
+                      <p className="text-gray-700">Perfect! 📅 Here are our available slots for this week:</p>
+                      <div className="mt-3 space-y-2">
+                        <button className="w-full text-left px-3 py-2 bg-white rounded-lg text-sm border border-gray-200 hover:border-emerald-500 transition">
+                          Mon, Dec 16 - 10:00 AM
+                        </button>
+                        <button className="w-full text-left px-3 py-2 bg-white rounded-lg text-sm border border-gray-200 hover:border-emerald-500 transition">
+                          Tue, Dec 17 - 2:00 PM
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
+      {/* CTA Banner - Changed text */}
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 text-white text-center">
+            <p className="text-2xl md:text-3xl font-bold">Don&apos;t lose customers. JOIN US</p>
+            <button 
+              onClick={scrollToForm}
+              className="bg-white text-emerald-600 px-6 py-2 rounded-xl font-semibold hover:bg-gray-100 transition"
+            >
+              Get Started →
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Features Section */}
-      <div className="bg-gray-50 py-20">
+      <div id="features" className="bg-gray-50 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Complete Automation Suite
+              Everything You Need to
+              <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent"> Succeed</span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Everything you need to automate customer interactions and grow your business
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Powerful automation tools designed to grow your business and delight your customers
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, idx) => (
               <div 
-                key={idx} 
-                className="card group hover:border-emerald-200 animate-slide-up"
-                style={{ animationDelay: `${idx * 100}ms` }}
+                key={idx}
+                className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-emerald-200"
               >
                 <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-4 rounded-xl w-fit mb-5 group-hover:scale-110 transition-transform">
                   <feature.icon className="text-emerald-600" size={28} />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
                 <p className="text-gray-600 leading-relaxed">{feature.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Section */}
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8 text-center text-white">
-            {stats.map((stat, idx) => (
-              <div key={idx} className="animate-fade-in" style={{ animationDelay: `${idx * 100}ms` }}>
-                <p className="text-5xl font-bold mb-2">{stat.value}</p>
-                <p className="text-emerald-100 text-lg">{stat.label}</p>
               </div>
             ))}
           </div>
@@ -842,6 +857,7 @@ export default function Home() {
             <div className="mt-8">
               <label className="block text-sm font-semibold text-gray-700 mb-4">
                 Select Automation Features <span className="text-red-500">*</span>
+                <span className="text-gray-500 font-normal ml-2">(Rs {PRICE_PER_FEATURE.toLocaleString()} each)</span>
               </label>
               <div className="grid sm:grid-cols-2 gap-4">
                 {automationOptions.map(automation => (
@@ -857,7 +873,16 @@ export default function Home() {
                   >
                     <span className="text-2xl">{automation.icon}</span>
                     <div className="flex-1">
-                      <p className="font-semibold text-gray-900 mb-0.5">{automation.label}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold text-gray-900 mb-0.5">{automation.label}</p>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                          formData.automations.includes(automation.id)
+                            ? 'bg-emerald-200 text-emerald-800'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          Rs {automation.price.toLocaleString()}
+                        </span>
+                      </div>
                       <p className="text-sm text-gray-600">{automation.desc}</p>
                     </div>
                     {formData.automations.includes(automation.id) && (
@@ -866,6 +891,23 @@ export default function Home() {
                   </button>
                 ))}
               </div>
+              
+              {/* Selected features summary */}
+              {formData.automations.length > 0 && (
+                <div className="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-emerald-800 font-medium">
+                      {formData.automations.length} feature{formData.automations.length > 1 ? 's' : ''} selected
+                    </span>
+                    <span className="text-emerald-800 font-bold">
+                      Total: Rs {totalPrice.toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-emerald-600 mt-1">
+                    Advance payment: Rs {ADVANCE_PAYMENT.toLocaleString()} • Remaining on completion
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
