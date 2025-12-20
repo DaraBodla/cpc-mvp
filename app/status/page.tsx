@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import { 
   MessageSquare, ArrowLeft, Search, Phone, Mail, CheckCircle, 
@@ -43,7 +43,22 @@ interface Payment {
   created_at: string
 }
 
-const statusConfig: Record<string, { color: string; bg: string; icon: React.ElementType; label: string; description: string }> = {
+interface StatusConfigItem {
+  color: string
+  bg: string
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  label: string
+  description: string
+}
+
+interface PaymentStatusConfigItem {
+  color: string
+  bg: string
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  label: string
+}
+
+const statusConfig: Record<string, StatusConfigItem> = {
   pending: { 
     color: 'text-amber-700', 
     bg: 'bg-amber-50 border-amber-200', 
@@ -74,7 +89,7 @@ const statusConfig: Record<string, { color: string; bg: string; icon: React.Elem
   }
 }
 
-const paymentStatusConfig: Record<string, { color: string; bg: string; icon: React.ElementType; label: string }> = {
+const paymentStatusConfig: Record<string, PaymentStatusConfigItem> = {
   unpaid: { color: 'text-red-700', bg: 'bg-red-50 border-red-200', icon: XCircle, label: 'Payment Required' },
   pending: { color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', icon: Clock, label: 'Verifying Payment' },
   verified: { color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', icon: CheckCircle, label: 'Payment Verified' },
@@ -89,11 +104,14 @@ export default function BusinessStatusPage() {
   const [business, setBusiness] = useState<Business | null>(null)
   const [payment, setPayment] = useState<Payment | null>(null)
   
-  // Payment upload states
   const [showPaymentUpload, setShowPaymentUpload] = useState(false)
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null)
   const [paymentPreview, setPaymentPreview] = useState<string | null>(null)
   const [uploadingPayment, setUploadingPayment] = useState(false)
+
+  const totalAmount = business ? (business.total_amount || business.automations.length * PRICE_PER_FEATURE) : 0
+  const paymentStatus = payment?.status || 'unpaid'
+  const businessStatus = business?.status || 'pending'
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -116,14 +134,13 @@ export default function BusinessStatusPage() {
         setBusiness(data.business)
         setPayment(data.payment || null)
         
-        // If no payment exists and status requires payment, show upload
         if (!data.payment || data.payment.status === 'rejected') {
           setShowPaymentUpload(true)
         }
       } else {
         setError(data.error || 'Business not found. Please check your details.')
       }
-    } catch (err) {
+    } catch {
       setError('Network error. Please try again.')
     } finally {
       setLoading(false)
@@ -166,29 +183,29 @@ export default function BusinessStatusPage() {
 
       if (response.ok) {
         alert('Payment screenshot uploaded successfully! We\'ll verify it within 24 hours.')
-        // Refresh business status
-        handleSearch({ preventDefault: () => {} } as React.FormEvent)
+        const fakeEvent = { preventDefault: () => {} } as React.FormEvent
+        handleSearch(fakeEvent)
         setShowPaymentUpload(false)
         setPaymentScreenshot(null)
         setPaymentPreview(null)
       } else {
-        const error = await response.json()
-        alert(error.message || 'Upload failed. Please try again.')
+        const errorData = await response.json()
+        alert(errorData.message || 'Upload failed. Please try again.')
       }
-    } catch (error) {
+    } catch {
       alert('Network error. Please try again.')
     } finally {
       setUploadingPayment(false)
     }
   }
 
-  const totalAmount = business ? (business.total_amount || business.automations.length * PRICE_PER_FEATURE) : 0
-  const paymentStatus = payment?.status || 'unpaid'
-  const businessStatus = business?.status || 'pending'
+  const currentStatusConfig = statusConfig[businessStatus] || statusConfig.pending
+  const currentPaymentConfig = paymentStatusConfig[paymentStatus] || paymentStatusConfig.unpaid
+  const StatusIcon = currentStatusConfig.icon
+  const PaymentIcon = currentPaymentConfig.icon
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
@@ -198,10 +215,7 @@ export default function BusinessStatusPage() {
               </div>
               <span className="text-xl font-bold text-gray-900">CPC</span>
             </Link>
-            <Link 
-              href="/" 
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium"
-            >
+            <Link href="/" className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium">
               <ArrowLeft size={18} />
               Back to Home
             </Link>
@@ -210,7 +224,6 @@ export default function BusinessStatusPage() {
       </nav>
 
       <div className="max-w-2xl mx-auto px-4 py-12">
-        {/* Search Section */}
         {!business && (
           <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-200">
             <div className="text-center mb-8">
@@ -222,7 +235,6 @@ export default function BusinessStatusPage() {
             </div>
 
             <form onSubmit={handleSearch}>
-              {/* Search Type Toggle */}
               <div className="flex gap-2 mb-4">
                 <button
                   type="button"
@@ -250,7 +262,6 @@ export default function BusinessStatusPage() {
                 </button>
               </div>
 
-              {/* Search Input */}
               <input
                 type={searchType === 'email' ? 'email' : 'tel'}
                 value={searchValue}
@@ -287,10 +298,8 @@ export default function BusinessStatusPage() {
           </div>
         )}
 
-        {/* Business Status Display */}
         {business && (
           <div className="space-y-6">
-            {/* Back Button */}
             <button
               onClick={() => {
                 setBusiness(null)
@@ -304,33 +313,26 @@ export default function BusinessStatusPage() {
               Search Again
             </button>
 
-            {/* Business Info Card */}
             <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-200">
               <div className="flex items-start justify-between mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">{business.business_name}</h2>
                   <p className="text-gray-500 capitalize">{business.business_type}</p>
                 </div>
-                <div className={`px-4 py-2 rounded-full border ${statusConfig[businessStatus]?.bg || 'bg-gray-50 border-gray-200'}`}>
+                <div className={`px-4 py-2 rounded-full border ${currentStatusConfig.bg}`}>
                   <div className="flex items-center gap-2">
-                    {statusConfig[businessStatus]?.icon && (
-                      <statusConfig[businessStatus].icon size={16} className={statusConfig[businessStatus]?.color} />
-                    )}
-                    <span className={`font-semibold ${statusConfig[businessStatus]?.color || 'text-gray-700'}`}>
-                      {statusConfig[businessStatus]?.label || businessStatus}
+                    <StatusIcon size={16} className={currentStatusConfig.color} />
+                    <span className={`font-semibold ${currentStatusConfig.color}`}>
+                      {currentStatusConfig.label}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Status Description */}
-              <div className={`p-4 rounded-xl border mb-6 ${statusConfig[businessStatus]?.bg || 'bg-gray-50 border-gray-200'}`}>
-                <p className={statusConfig[businessStatus]?.color || 'text-gray-700'}>
-                  {statusConfig[businessStatus]?.description || 'Status information not available.'}
-                </p>
+              <div className={`p-4 rounded-xl border mb-6 ${currentStatusConfig.bg}`}>
+                <p className={currentStatusConfig.color}>{currentStatusConfig.description}</p>
               </div>
 
-              {/* Contact Info */}
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xs text-gray-500 uppercase mb-1">Owner</p>
@@ -344,7 +346,6 @@ export default function BusinessStatusPage() {
                 </div>
               </div>
 
-              {/* Selected Automations */}
               <div className="mb-6">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <Package size={18} />
@@ -369,16 +370,13 @@ export default function BusinessStatusPage() {
                 )}
               </div>
 
-              {/* Payment Status */}
-              <div className={`p-4 rounded-xl border ${paymentStatusConfig[paymentStatus]?.bg || 'bg-gray-50 border-gray-200'}`}>
+              <div className={`p-4 rounded-xl border ${currentPaymentConfig.bg}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {paymentStatusConfig[paymentStatus]?.icon && (
-                      <paymentStatusConfig[paymentStatus].icon size={24} className={paymentStatusConfig[paymentStatus]?.color} />
-                    )}
+                    <PaymentIcon size={24} className={currentPaymentConfig.color} />
                     <div>
-                      <p className={`font-semibold ${paymentStatusConfig[paymentStatus]?.color}`}>
-                        {paymentStatusConfig[paymentStatus]?.label || 'Unknown'}
+                      <p className={`font-semibold ${currentPaymentConfig.color}`}>
+                        {currentPaymentConfig.label}
                       </p>
                       <p className="text-sm text-gray-500">
                         {paymentStatus === 'verified' 
@@ -398,7 +396,6 @@ export default function BusinessStatusPage() {
               </div>
             </div>
 
-            {/* Payment Upload Section */}
             {showPaymentUpload && (paymentStatus === 'unpaid' || paymentStatus === 'rejected') && (
               <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-200">
                 <div className="text-center mb-6">
@@ -414,7 +411,6 @@ export default function BusinessStatusPage() {
                   </p>
                 </div>
 
-                {/* Order Summary */}
                 <div className="bg-gray-50 rounded-xl p-4 mb-6">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-gray-600">Total Bill</span>
@@ -426,7 +422,6 @@ export default function BusinessStatusPage() {
                   </div>
                 </div>
 
-                {/* Bank Details */}
                 <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 mb-6 border border-emerald-200">
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                     <Building size={18} className="text-emerald-600" />
@@ -464,7 +459,6 @@ export default function BusinessStatusPage() {
                   </div>
                 </div>
 
-                {/* Screenshot Upload */}
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-emerald-500 transition-colors mb-6">
                   {paymentPreview ? (
                     <div className="space-y-4">
@@ -523,18 +517,14 @@ export default function BusinessStatusPage() {
               </div>
             )}
 
-            {/* Timeline/Progress */}
             <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-200">
               <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                 <Calendar size={20} />
                 Your Journey
               </h3>
               <div className="space-y-4">
-                {/* Step 1: Registration */}
                 <div className="flex items-start gap-4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    true ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500'
-                  }`}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-emerald-500 text-white">
                     <CheckCircle size={16} />
                   </div>
                   <div className="flex-1 pb-4 border-b border-gray-100">
@@ -543,7 +533,6 @@ export default function BusinessStatusPage() {
                   </div>
                 </div>
 
-                {/* Step 2: Payment */}
                 <div className="flex items-start gap-4">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                     paymentStatus === 'verified' ? 'bg-emerald-500 text-white' 
@@ -564,7 +553,6 @@ export default function BusinessStatusPage() {
                   </div>
                 </div>
 
-                {/* Step 3: Contact */}
                 <div className="flex items-start gap-4">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                     ['contacted', 'onboarded', 'active'].includes(businessStatus) 
@@ -585,7 +573,6 @@ export default function BusinessStatusPage() {
                   </div>
                 </div>
 
-                {/* Step 4: Setup */}
                 <div className="flex items-start gap-4">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                     ['onboarded', 'active'].includes(businessStatus) 
@@ -606,7 +593,6 @@ export default function BusinessStatusPage() {
                   </div>
                 </div>
 
-                {/* Step 5: Active */}
                 <div className="flex items-start gap-4">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                     businessStatus === 'active' 
