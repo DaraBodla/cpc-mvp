@@ -33,6 +33,7 @@ interface Payment {
   amount: number
   screenshot_url?: string
   screenshot_path?: string
+  screenshot_data?: string
   status: string
   created_at: string
 }
@@ -61,6 +62,17 @@ interface Metrics {
   totalDemoClicks: number
   totalPaymentUploads: number
   uniqueDemoEngagements: number
+}
+
+// Supabase URL for storage
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+
+// Helper function to get Supabase Storage URL from path
+const getStorageUrl = (path: string | undefined | null): string | null => {
+  if (!path) return null
+  if (!SUPABASE_URL) return null
+  // Construct the public URL for the storage bucket
+  return `${SUPABASE_URL}/storage/v1/object/public/cpc/${path}`
 }
 
 const statusColors: Record<string, string> = {
@@ -101,6 +113,7 @@ export default function AdminDashboard() {
   const [businessPayments, setBusinessPayments] = useState<Payment[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [totalPaymentsCount, setTotalPaymentsCount] = useState(0)
 
   // Check authentication on mount
   useEffect(() => {
@@ -168,10 +181,11 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [businessesRes, statsRes, metricsRes] = await Promise.all([
+      const [businessesRes, statsRes, metricsRes, paymentsRes] = await Promise.all([
         fetch('/api/businesses'),
         fetch('/api/stats'),
-        fetch('/api/analytics')
+        fetch('/api/analytics'),
+        fetch('/api/payments')
       ])
 
       if (businessesRes.ok) {
@@ -187,6 +201,11 @@ export default function AdminDashboard() {
       if (metricsRes.ok) {
         const data = await metricsRes.json()
         setMetrics(data)
+      }
+
+      if (paymentsRes.ok) {
+        const data = await paymentsRes.json()
+        setTotalPaymentsCount(data.payments?.length || 0)
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -643,7 +662,7 @@ export default function AdminDashboard() {
                     <CreditCard className="text-amber-600" size={20} />
                   </div>
                 </div>
-                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{correctedPaymentUploads}</p>
+                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{totalPaymentsCount}</p>
                 <p className="text-gray-500 text-xs lg:text-sm mt-1">Payments</p>
               </div>
             </div>
@@ -842,60 +861,91 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {businessPayments.map(payment => (
-                      <div key={payment.id} className="border border-gray-200 rounded-xl p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <p className="font-medium text-gray-900">Rs {payment.amount.toLocaleString()}</p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(payment.created_at).toLocaleString()}
-                            </p>
-                          </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${paymentStatusColors[payment.status]}`}>
-                            {payment.status}
-                          </span>
-                        </div>
-                        
-                        {/* Screenshot Preview */}
-                        {payment.screenshot_url && (
-                          <div className="mb-3">
-                            <div 
-                              className="relative cursor-pointer group"
-                              onClick={() => setSelectedImage(payment.screenshot_url || null)}
-                            >
-                              <img 
-                                src={payment.screenshot_url} 
-                                alt="Payment Screenshot"
-                                className="w-full max-h-48 object-cover rounded-lg border border-gray-200"
-                              />
-                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                <ExternalLink className="text-white" size={24} />
-                              </div>
+                    {businessPayments.map(payment => {
+                      // Try to get screenshot URL from various sources
+                      let screenshotUrl: string | null = null
+                      
+                      if (payment.screenshot_url) {
+                        screenshotUrl = payment.screenshot_url
+                      } else if (payment.screenshot_path) {
+                        screenshotUrl = getStorageUrl(payment.screenshot_path)
+                      } else if (payment.screenshot_data) {
+                        // Handle base64 data
+                        screenshotUrl = payment.screenshot_data.startsWith('data:') 
+                          ? payment.screenshot_data 
+                          : `data:image/png;base64,${payment.screenshot_data}`
+                      }
+                      
+                      return (
+                        <div key={payment.id} className="border border-gray-200 rounded-xl p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <p className="font-medium text-gray-900">Rs {payment.amount.toLocaleString()}</p>
+                              <p className="text-xs text-gray-500">
+                                {new Date(payment.created_at).toLocaleString()}
+                              </p>
                             </div>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${paymentStatusColors[payment.status]}`}>
+                              {payment.status}
+                            </span>
                           </div>
-                        )}
-                        
-                        {/* Payment Actions */}
-                        {payment.status === 'pending' && (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => updatePaymentStatus(payment.id, 'verified')}
-                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700"
-                            >
-                              <CheckCircle size={16} />
-                              Verify
-                            </button>
-                            <button
-                              onClick={() => updatePaymentStatus(payment.id, 'rejected')}
-                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
-                            >
-                              <XCircle size={16} />
-                              Reject
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                          
+                          {/* Screenshot Preview */}
+                          {screenshotUrl ? (
+                            <div className="mb-3">
+                              <div 
+                                className="relative cursor-pointer group"
+                                onClick={() => setSelectedImage(screenshotUrl)}
+                              >
+                                <img 
+                                  src={screenshotUrl} 
+                                  alt="Payment Screenshot"
+                                  className="w-full max-h-48 object-cover rounded-lg border border-gray-200"
+                                  onError={(e) => {
+                                    // If image fails to load, show error state
+                                    const target = e.target as HTMLImageElement
+                                    target.style.display = 'none'
+                                    target.parentElement!.innerHTML = '<div class="p-4 bg-red-50 text-red-600 text-sm rounded-lg">Failed to load image</div>'
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                  <ExternalLink className="text-white" size={24} />
+                                </div>
+                              </div>
+                              {/* Debug info */}
+                              <p className="text-xs text-gray-400 mt-1 truncate">
+                                {payment.screenshot_path || 'Direct URL'}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="mb-3 p-3 bg-gray-50 rounded-lg text-center">
+                              <Image className="mx-auto text-gray-300 mb-1" size={24} />
+                              <p className="text-xs text-gray-500">No screenshot available</p>
+                            </div>
+                          )}
+                          
+                          {/* Payment Actions */}
+                          {payment.status === 'pending' && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => updatePaymentStatus(payment.id, 'verified')}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700"
+                              >
+                                <CheckCircle size={16} />
+                                Verify
+                              </button>
+                              <button
+                                onClick={() => updatePaymentStatus(payment.id, 'rejected')}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
+                              >
+                                <XCircle size={16} />
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
