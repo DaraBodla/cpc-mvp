@@ -16,10 +16,42 @@ const SUBSCRIPTION_MONTHLY = 1000 // PKR per month
 
 // Bank Details
 const BANK_DETAILS = {
-  bankName: 'Meezan Bank',
-  accountTitle: 'Dara Shikoh Bodla',
-  accountNumber: '98570108179921'
+  bankName: 'Sadapay',
+  accountTitle: 'Dara Shioh Bodla',
+  accountNumber: '03216320882'
 }
+
+// Country codes for WhatsApp
+const COUNTRY_CODES = [
+  { code: '+92', country: 'Pakistan', flag: '🇵🇰' },
+  { code: '+1', country: 'USA/Canada', flag: '🇺🇸' },
+  { code: '+44', country: 'UK', flag: '🇬🇧' },
+  { code: '+91', country: 'India', flag: '🇮🇳' },
+  { code: '+971', country: 'UAE', flag: '🇦🇪' },
+  { code: '+966', country: 'Saudi Arabia', flag: '🇸🇦' },
+  { code: '+974', country: 'Qatar', flag: '🇶🇦' },
+  { code: '+968', country: 'Oman', flag: '🇴🇲' },
+  { code: '+973', country: 'Bahrain', flag: '🇧🇭' },
+  { code: '+965', country: 'Kuwait', flag: '🇰🇼' },
+  { code: '+60', country: 'Malaysia', flag: '🇲🇾' },
+  { code: '+65', country: 'Singapore', flag: '🇸🇬' },
+  { code: '+61', country: 'Australia', flag: '🇦🇺' },
+  { code: '+49', country: 'Germany', flag: '🇩🇪' },
+  { code: '+33', country: 'France', flag: '🇫🇷' },
+  { code: '+39', country: 'Italy', flag: '🇮🇹' },
+  { code: '+34', country: 'Spain', flag: '🇪🇸' },
+  { code: '+31', country: 'Netherlands', flag: '🇳🇱' },
+  { code: '+90', country: 'Turkey', flag: '🇹🇷' },
+  { code: '+86', country: 'China', flag: '🇨🇳' },
+  { code: '+81', country: 'Japan', flag: '🇯🇵' },
+  { code: '+82', country: 'South Korea', flag: '🇰🇷' },
+  { code: '+55', country: 'Brazil', flag: '🇧🇷' },
+  { code: '+52', country: 'Mexico', flag: '🇲🇽' },
+  { code: '+27', country: 'South Africa', flag: '🇿🇦' },
+  { code: '+234', country: 'Nigeria', flag: '🇳🇬' },
+  { code: '+254', country: 'Kenya', flag: '🇰🇪' },
+  { code: '+20', country: 'Egypt', flag: '🇪🇬' },
+]
 
 // Generate or retrieve session ID for analytics
 function getSessionId(): string {
@@ -55,6 +87,7 @@ interface FormData {
   businessName: string
   businessType: string
   ownerName: string
+  countryCode: string
   whatsapp: string
   email: string
   automations: string[]
@@ -88,6 +121,7 @@ export default function Home() {
     businessName: '',
     businessType: '',
     ownerName: '',
+    countryCode: '+92',
     whatsapp: '',
     email: '',
     automations: [],
@@ -148,6 +182,9 @@ export default function Home() {
       return
     }
 
+    // Combine country code with phone number
+    const fullWhatsApp = formData.countryCode + formData.whatsapp.replace(/^0+/, '')
+
     setLoading(true)
     try {
       const response = await fetch('/api/businesses', {
@@ -155,6 +192,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          whatsapp: fullWhatsApp,
           totalAmount: formData.automations.length * PRICE_PER_FEATURE,
           hasSubscription: formData.hasSubscription,
           subscriptionAmount: formData.hasSubscription ? SUBSCRIPTION_MONTHLY : 0
@@ -278,6 +316,7 @@ export default function Home() {
       businessName: '',
       businessType: '',
       ownerName: '',
+      countryCode: '+92',
       whatsapp: '',
       email: '',
       automations: [],
@@ -705,7 +744,7 @@ export default function Home() {
               <div className="flex items-center gap-2 mb-6">
                 <span className="bg-emerald-100 text-emerald-800 text-sm font-semibold px-4 py-1.5 rounded-full flex items-center gap-2">
                   <Sparkles size={16} />
-                  That's how you don't lose customers!
+                  Trusted by 500+ businesses
                 </span>
               </div>
               <h1 className="text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight mb-6">
@@ -910,14 +949,28 @@ export default function Home() {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   WhatsApp Number <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="tel"
-                  name="whatsapp"
-                  value={formData.whatsapp}
-                  onChange={handleInputChange}
-                  className="input"
-                  placeholder="+92 XXX XXXXXXX"
-                />
+                <div className="flex gap-2">
+                  <select
+                    name="countryCode"
+                    value={formData.countryCode}
+                    onChange={handleInputChange}
+                    className="input w-32 flex-shrink-0"
+                  >
+                    {COUNTRY_CODES.map(country => (
+                      <option key={country.code} value={country.code}>
+                        {country.flag} {country.code}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="tel"
+                    name="whatsapp"
+                    value={formData.whatsapp}
+                    onChange={handleInputChange}
+                    className="input flex-1"
+                    placeholder="3XX XXXXXXX"
+                  />
+                </div>
               </div>
 
               <div className="md:col-span-2">
