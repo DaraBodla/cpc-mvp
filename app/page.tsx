@@ -954,7 +954,7 @@ export default function Home() {
                     name="countryCode"
                     value={formData.countryCode}
                     onChange={handleInputChange}
-                    className="input w-32 flex-shrink-0"
+                    className="px-3 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-24 text-sm"
                   >
                     {COUNTRY_CODES.map(country => (
                       <option key={country.code} value={country.code}>
@@ -967,7 +967,7 @@ export default function Home() {
                     name="whatsapp"
                     value={formData.whatsapp}
                     onChange={handleInputChange}
-                    className="input flex-1"
+                    className="input flex-1 min-w-0"
                     placeholder="3XX XXXXXXX"
                   />
                 </div>
