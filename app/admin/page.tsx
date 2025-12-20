@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { 
-  BarChart3, Users, Package, MessageSquare, TrendingUp, 
-  RefreshCw, Search, Eye, CheckCircle, Clock, ArrowLeft, Zap, Target,
-  Mail, Phone, X, Percent, MousePointer, PieChart, Upload, CreditCard,
-  Lock, KeyRound, Shield, LogOut, AlertCircle
+  BarChart3, Users, Package, TrendingUp, 
+  RefreshCw, Search, Eye, Clock, ArrowLeft,
+  Mail, Phone, X, Percent, MousePointer, PieChart, CreditCard,
+  Lock, KeyRound, Shield, LogOut, AlertCircle, Image, CheckCircle,
+  XCircle, ExternalLink
 } from 'lucide-react'
 
 interface Business {
@@ -18,8 +19,22 @@ interface Business {
   email: string
   automations: string[]
   status: string
+  payment_status?: string
+  has_subscription?: boolean
+  subscription_amount?: number
+  total_amount?: number
   created_at: string
   notes?: string
+}
+
+interface Payment {
+  id: number
+  business_id: number
+  amount: number
+  screenshot_url?: string
+  screenshot_path?: string
+  status: string
+  created_at: string
 }
 
 interface Stats {
@@ -31,6 +46,9 @@ interface Stats {
   todayLeads: number
   businessesByType: Record<string, number>
   automationPopularity: Record<string, number>
+  totalPayments: number
+  pendingPayments: number
+  verifiedPayments: number
 }
 
 interface Metrics {
@@ -41,7 +59,6 @@ interface Metrics {
   totalVisitors: number
   totalSubmissions: number
   totalDemoClicks: number
-  totalDemoMessages: number
   totalPaymentUploads: number
   uniqueDemoEngagements: number
 }
@@ -51,6 +68,13 @@ const statusColors: Record<string, string> = {
   contacted: 'bg-blue-100 text-blue-800',
   onboarded: 'bg-purple-100 text-purple-800',
   active: 'bg-emerald-100 text-emerald-800'
+}
+
+const paymentStatusColors: Record<string, string> = {
+  unpaid: 'bg-red-100 text-red-800',
+  pending: 'bg-amber-100 text-amber-800',
+  verified: 'bg-emerald-100 text-emerald-800',
+  rejected: 'bg-red-100 text-red-800'
 }
 
 export default function AdminDashboard() {
@@ -72,6 +96,11 @@ export default function AdminDashboard() {
   const [filterStatus, setFilterStatus] = useState('')
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null)
   const [activeTab, setActiveTab] = useState<'businesses' | 'metrics'>('businesses')
+  
+  // Payment states
+  const [businessPayments, setBusinessPayments] = useState<Payment[]>([])
+  const [loadingPayments, setLoadingPayments] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
 
   // Check authentication on mount
   useEffect(() => {
@@ -117,7 +146,7 @@ export default function AdminDashboard() {
       } else {
         setLoginError(data.error || 'Authentication failed')
       }
-    } catch (error) {
+    } catch {
       setLoginError('Network error. Please try again.')
     } finally {
       setLoggingIn(false)
@@ -166,6 +195,44 @@ export default function AdminDashboard() {
     }
   }
 
+  // Fetch payments for a specific business
+  const fetchBusinessPayments = async (businessId: number) => {
+    setLoadingPayments(true)
+    try {
+      const response = await fetch(`/api/payments?business_id=${businessId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setBusinessPayments(data.payments || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch payments:', error)
+    } finally {
+      setLoadingPayments(false)
+    }
+  }
+
+  // Update payment status
+  const updatePaymentStatus = async (paymentId: number, status: string) => {
+    try {
+      const response = await fetch('/api/payments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId, status })
+      })
+
+      if (response.ok) {
+        // Refresh payments
+        if (selectedBusiness) {
+          fetchBusinessPayments(selectedBusiness.id)
+        }
+        // Refresh stats
+        fetchData()
+      }
+    } catch (error) {
+      console.error('Failed to update payment:', error)
+    }
+  }
+
   const updateBusinessStatus = async (id: number, status: string) => {
     try {
       const response = await fetch(`/api/businesses/${id}`, {
@@ -187,6 +254,13 @@ export default function AdminDashboard() {
     }
   }
 
+  // When selecting a business, also fetch their payments
+  const handleSelectBusiness = (business: Business) => {
+    setSelectedBusiness(business)
+    setBusinessPayments([])
+    fetchBusinessPayments(business.id)
+  }
+
   const filteredBusinesses = businesses.filter(b => {
     const matchesSearch = 
       b.business_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -198,6 +272,12 @@ export default function AdminDashboard() {
   })
 
   const uniqueTypes = Array.from(new Set(businesses.map(b => b.business_type)))
+
+  // Calculate corrected payment upload rate (divide by 2 since each upload counts twice)
+  const correctedPaymentUploads = Math.floor((metrics?.totalPaymentUploads || 0) / 2)
+  const correctedPaymentRate = metrics?.totalSubmissions 
+    ? ((correctedPaymentUploads / metrics.totalSubmissions) * 100)
+    : 0
 
   // Auth loading state
   if (authLoading) {
@@ -448,7 +528,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Metric 4: Payment Upload Rate */}
+              {/* Metric 4: Payment Upload Rate - FIXED */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="bg-amber-100 p-3 rounded-xl">
@@ -457,11 +537,11 @@ export default function AdminDashboard() {
                   <span className="text-xs font-medium text-gray-500 uppercase">Metric 4</span>
                 </div>
                 <p className="text-4xl font-bold text-gray-900 mb-1">
-                  {metrics?.paymentUploadRate?.toFixed(1) || '0'}%
+                  {correctedPaymentRate.toFixed(1)}%
                 </p>
                 <p className="text-gray-600 font-medium">Payment Upload Rate</p>
                 <p className="text-sm text-gray-500 mt-2">
-                  {metrics?.totalPaymentUploads || 0} uploads / {metrics?.totalSubmissions || 0} submissions
+                  {correctedPaymentUploads} uploads / {metrics?.totalSubmissions || 0} submissions
                 </p>
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <p className="text-xs text-gray-500">% of businesses that upload payment screenshot</p>
@@ -503,8 +583,8 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            {/* Raw Numbers */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {/* Raw Numbers - REMOVED WhatsApp Messages */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-gray-50 rounded-xl p-4 text-center">
                 <p className="text-2xl font-bold text-gray-900">{metrics?.totalVisitors || 0}</p>
                 <p className="text-sm text-gray-600">Total Visitors</p>
@@ -518,12 +598,8 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-600">Demo Bot Clicks</p>
               </div>
               <div className="bg-gray-50 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-gray-900">{metrics?.totalPaymentUploads || 0}</p>
+                <p className="text-2xl font-bold text-gray-900">{correctedPaymentUploads}</p>
                 <p className="text-sm text-gray-600">Payment Uploads</p>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-gray-900">{metrics?.totalDemoMessages || 0}</p>
-                <p className="text-sm text-gray-600">WhatsApp Messages</p>
               </div>
             </div>
           </div>
@@ -532,7 +608,7 @@ export default function AdminDashboard() {
         {/* Businesses Tab */}
         {activeTab === 'businesses' && (
           <>
-            {/* Stats Cards */}
+            {/* Stats Cards - FIXED to use businesses.length */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
                 <div className="flex items-center justify-between mb-3">
@@ -540,7 +616,7 @@ export default function AdminDashboard() {
                     <Users className="text-emerald-600" size={20} />
                   </div>
                 </div>
-                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{stats?.totalBusinesses || businesses.length}</p>
+                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{businesses.length}</p>
                 <p className="text-gray-500 text-xs lg:text-sm mt-1">Businesses</p>
               </div>
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
@@ -564,11 +640,11 @@ export default function AdminDashboard() {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
                 <div className="flex items-center justify-between mb-3">
                   <div className="bg-amber-100 p-2 lg:p-3 rounded-xl">
-                    <MessageSquare className="text-amber-600" size={20} />
+                    <CreditCard className="text-amber-600" size={20} />
                   </div>
                 </div>
-                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{stats?.totalMessages || 0}</p>
-                <p className="text-gray-500 text-xs lg:text-sm mt-1">Messages</p>
+                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{correctedPaymentUploads}</p>
+                <p className="text-gray-500 text-xs lg:text-sm mt-1">Payments</p>
               </div>
             </div>
 
@@ -670,7 +746,7 @@ export default function AdminDashboard() {
                           </td>
                           <td className="px-6 py-4">
                             <button
-                              onClick={() => setSelectedBusiness(business)}
+                              onClick={() => handleSelectBusiness(business)}
                               className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
                             >
                               <Eye size={18} />
@@ -687,10 +763,10 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* Detail Modal */}
+      {/* Detail Modal with Payment Screenshots */}
       {selectedBusiness && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex justify-between items-start">
               <div>
                 <h3 className="text-xl font-bold text-gray-900">{selectedBusiness.business_name}</h3>
@@ -736,6 +812,94 @@ export default function AdminDashboard() {
                   ))}
                 </div>
               </div>
+
+              {/* Subscription Info */}
+              {selectedBusiness.has_subscription && (
+                <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                  <p className="text-xs text-purple-600 uppercase mb-1">Subscription</p>
+                  <p className="font-medium text-purple-700">
+                    Premium Support - Rs {selectedBusiness.subscription_amount?.toLocaleString()}/mo
+                  </p>
+                  <p className="text-xs text-purple-600 mt-1">First month FREE</p>
+                </div>
+              )}
+
+              {/* Payment Screenshots Section */}
+              <div className="border-t border-gray-200 pt-4">
+                <p className="text-xs text-gray-500 uppercase mb-3 flex items-center gap-2">
+                  <CreditCard size={14} />
+                  Payment Proofs
+                </p>
+                
+                {loadingPayments ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw className="animate-spin text-gray-400" size={24} />
+                  </div>
+                ) : businessPayments.length === 0 ? (
+                  <div className="text-center py-6 bg-gray-50 rounded-xl">
+                    <Image className="mx-auto text-gray-300 mb-2" size={32} />
+                    <p className="text-sm text-gray-500">No payment screenshots uploaded</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {businessPayments.map(payment => (
+                      <div key={payment.id} className="border border-gray-200 rounded-xl p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="font-medium text-gray-900">Rs {payment.amount.toLocaleString()}</p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(payment.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${paymentStatusColors[payment.status]}`}>
+                            {payment.status}
+                          </span>
+                        </div>
+                        
+                        {/* Screenshot Preview */}
+                        {payment.screenshot_url && (
+                          <div className="mb-3">
+                            <div 
+                              className="relative cursor-pointer group"
+                              onClick={() => setSelectedImage(payment.screenshot_url || null)}
+                            >
+                              <img 
+                                src={payment.screenshot_url} 
+                                alt="Payment Screenshot"
+                                className="w-full max-h-48 object-cover rounded-lg border border-gray-200"
+                              />
+                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                <ExternalLink className="text-white" size={24} />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Payment Actions */}
+                        {payment.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => updatePaymentStatus(payment.id, 'verified')}
+                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700"
+                            >
+                              <CheckCircle size={16} />
+                              Verify
+                            </button>
+                            <button
+                              onClick={() => updatePaymentStatus(payment.id, 'rejected')}
+                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
+                            >
+                              <XCircle size={16} />
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div>
                 <p className="text-xs text-gray-500 uppercase mb-1">Registered</p>
                 <p className="text-gray-700">{new Date(selectedBusiness.created_at).toLocaleDateString()}</p>
@@ -758,6 +922,27 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Full Screen Image Viewer */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <button 
+            className="absolute top-4 right-4 text-white hover:text-gray-300"
+            onClick={() => setSelectedImage(null)}
+          >
+            <X size={32} />
+          </button>
+          <img 
+            src={selectedImage} 
+            alt="Payment Screenshot Full"
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>
