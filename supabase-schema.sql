@@ -154,54 +154,6 @@ CREATE INDEX IF NOT EXISTS idx_processed_messages_message_id ON processed_messag
 -- DELETE FROM processed_messages WHERE processed_at < NOW() - INTERVAL '7 days';
 
 -- ============================================================
--- PAYMENTS TABLE (for payment screenshots and tracking)
--- ============================================================
-CREATE TABLE IF NOT EXISTS payments (
-    id BIGSERIAL PRIMARY KEY,
-    business_id BIGINT REFERENCES businesses(id) ON DELETE CASCADE,
-    amount INTEGER NOT NULL DEFAULT 0,
-    screenshot_data TEXT, -- Base64 encoded image
-    screenshot_filename VARCHAR(255),
-    screenshot_size INTEGER,
-    status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    verified_at TIMESTAMPTZ,
-    verified_by VARCHAR(255),
-    notes TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ,
-    CONSTRAINT valid_payment_status CHECK (status IN ('pending', 'verified', 'rejected', 'refunded'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_payments_business_id ON payments(business_id);
-CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
-CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at DESC);
-
--- Add payment columns to businesses table
-ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'unpaid';
-ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_amount INTEGER DEFAULT 0;
-ALTER TABLE businesses ADD COLUMN IF NOT EXISTS total_amount INTEGER DEFAULT 0;
-
--- ============================================================
--- ANALYTICS EVENTS TABLE (for tracking metrics)
--- ============================================================
-CREATE TABLE IF NOT EXISTS analytics_events (
-    id BIGSERIAL PRIMARY KEY,
-    event VARCHAR(100) NOT NULL,
-    page VARCHAR(100),
-    automation_type VARCHAR(255),
-    source VARCHAR(100),
-    session_id VARCHAR(100),
-    business_id BIGINT REFERENCES businesses(id) ON DELETE SET NULL,
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_analytics_event ON analytics_events(event);
-CREATE INDEX IF NOT EXISTS idx_analytics_session ON analytics_events(session_id);
-CREATE INDEX IF NOT EXISTS idx_analytics_created_at ON analytics_events(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_analytics_business_id ON analytics_events(business_id);
-
--- ============================================================
 -- RATE LIMITS TABLE
 -- ============================================================
 CREATE TABLE IF NOT EXISTS rate_limits (
@@ -308,3 +260,535 @@ COMMENT ON TABLE leads IS 'Leads captured from WhatsApp interactions';
 COMMENT ON TABLE message_logs IS 'Log of all WhatsApp messages for debugging and analytics';
 COMMENT ON TABLE processed_messages IS 'Deduplication table for WhatsApp webhook messages';
 COMMENT ON TABLE rate_limits IS 'Rate limiting tracking for WhatsApp users';
+
+CREATE TABLE IF NOT EXISTS analytics_events (
+    id BIGSERIAL PRIMARY KEY,
+    event VARCHAR(100) NOT NULL,
+    page VARCHAR(100),
+    automation_type VARCHAR(255),
+    source VARCHAR(100),
+    session_id VARCHAR(100),
+    business_id BIGINT REFERENCES businesses(id) ON DELETE SET NULL,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_event ON analytics_events(event);
+CREATE INDEX IF NOT EXISTS idx_analytics_session ON analytics_events(session_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_created_at ON analytics_events(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS payments (
+    id BIGSERIAL PRIMARY KEY,
+    business_id BIGINT REFERENCES businesses(id) ON DELETE CASCADE,
+    amount INTEGER NOT NULL DEFAULT 0,
+    screenshot_data TEXT,
+    screenshot_filename VARCHAR(255),
+    screenshot_size INTEGER,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    verified_at TIMESTAMPTZ,
+    verified_by VARCHAR(255),
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ,
+    CONSTRAINT valid_payment_status CHECK (status IN ('pending', 'verified', 'rejected', 'refunded'))
+);
+
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'unpaid';
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_amount INTEGER DEFAULT 0;
+
+
+-- Add missing columns to businesses table
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS total_amount INTEGER DEFAULT 0;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'unpaid';
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS payment_amount INTEGER DEFAULT 0;
+
+-- Create analytics_events table if not exists
+CREATE TABLE IF NOT EXISTS analytics_events (
+    id BIGSERIAL PRIMARY KEY,
+    event VARCHAR(100) NOT NULL,
+    page VARCHAR(100),
+    automation_type VARCHAR(255),
+    source VARCHAR(100),
+    session_id VARCHAR(100),
+    business_id BIGINT,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Create payments table if not exists
+CREATE TABLE IF NOT EXISTS payments (
+    id BIGSERIAL PRIMARY KEY,
+    business_id BIGINT,
+    amount INTEGER NOT NULL DEFAULT 0,
+    screenshot_data TEXT,
+    screenshot_filename VARCHAR(255),
+    screenshot_size INTEGER,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- ============================================================
+-- ADMIN AUTHENTICATION TABLES
+-- Add this to your existing supabase-schema.sql or run separately
+-- ============================================================
+
+-- Admin config table (stores encrypted passwords)
+CREATE TABLE IF NOT EXISTS admin_config (
+    id BIGSERIAL PRIMARY KEY,
+    key VARCHAR(100) NOT NULL UNIQUE,
+    value JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_config_key ON admin_config(key);
+
+-- Admin sessions table (for session management)
+CREATE TABLE IF NOT EXISTS admin_sessions (
+    id BIGSERIAL PRIMARY KEY,
+    token VARCHAR(255) NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_token ON admin_sessions(token);
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON admin_sessions(expires_at);
+
+-- Admin login attempts table (security logging)
+CREATE TABLE IF NOT EXISTS admin_login_attempts (
+    id BIGSERIAL PRIMARY KEY,
+    success BOOLEAN NOT NULL,
+    ip_address VARCHAR(100),
+    user_agent TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_login_attempts_created ON admin_login_attempts(created_at DESC);
+
+-- Enable RLS on admin tables
+ALTER TABLE admin_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_login_attempts ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for service role (full access)
+CREATE POLICY "Service role has full access to admin_config" ON admin_config
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Service role has full access to admin_sessions" ON admin_sessions
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Service role has full access to admin_login_attempts" ON admin_login_attempts
+    FOR ALL USING (true) WITH CHECK (true);
+
+-- Clean up expired sessions (run periodically or set up a cron job)
+-- DELETE FROM admin_sessions WHERE expires_at < NOW();
+-- ============================================================
+-- CPC WhatsApp Bot - Meta Catalogue Integration Migration
+-- Version: 2.2.0
+-- Safe to run on existing database - will not break anything
+-- ============================================================
+
+-- Add new columns to orders table for catalogue support
+ALTER TABLE orders 
+ADD COLUMN IF NOT EXISTS items JSONB,
+ADD COLUMN IF NOT EXISTS total_amount INTEGER,
+ADD COLUMN IF NOT EXISTS order_source VARCHAR(20) DEFAULT 'bot_menu',
+ADD COLUMN IF NOT EXISTS meta_order_id VARCHAR(100);
+
+-- Add helpful comments
+COMMENT ON COLUMN orders.items IS 'Array of ordered items from Meta catalogue (JSONB format)';
+COMMENT ON COLUMN orders.total_amount IS 'Total order amount in paisa (e.g., 45000 = Rs 450)';
+COMMENT ON COLUMN orders.order_source IS 'Order source: meta_catalogue or bot_menu';
+COMMENT ON COLUMN orders.meta_order_id IS 'Order ID from Meta if order came from catalogue';
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number);
+CREATE INDEX IF NOT EXISTS idx_orders_meta_order_id ON orders(meta_order_id);
+CREATE INDEX IF NOT EXISTS idx_orders_source ON orders(order_source);
+CREATE INDEX IF NOT EXISTS idx_orders_source_status_created ON orders(order_source, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_wa_id_created ON orders(wa_id, created_at DESC);
+
+-- Drop and recreate the order number generation function with better logic
+DROP TRIGGER IF EXISTS set_order_number ON orders;
+DROP FUNCTION IF EXISTS generate_order_number() CASCADE;
+
+-- New function that generates unique order numbers with date prefix
+CREATE OR REPLACE FUNCTION generate_order_number()
+RETURNS TRIGGER AS $$
+DECLARE
+    new_order_num VARCHAR(50);
+    date_part VARCHAR(8);
+    random_part VARCHAR(8);
+    counter INTEGER := 0;
+BEGIN
+    -- Only generate if order_number is not already set
+    IF NEW.order_number IS NULL OR NEW.order_number = '' OR NEW.order_number LIKE 'ORD-%' AND LENGTH(NEW.order_number) < 15 THEN
+        date_part := TO_CHAR(NOW(), 'YYYYMMDD');
+        
+        -- Try to generate a unique order number (max 10 attempts)
+        LOOP
+            random_part := UPPER(SUBSTRING(MD5(RANDOM()::TEXT || RANDOM()::TEXT) FROM 1 FOR 8));
+            new_order_num := 'ORD-' || date_part || '-' || random_part;
+            
+            -- Check if this order number already exists
+            IF NOT EXISTS (SELECT 1 FROM orders WHERE order_number = new_order_num) THEN
+                EXIT;
+            END IF;
+            
+            counter := counter + 1;
+            IF counter > 10 THEN
+                RAISE EXCEPTION 'Could not generate unique order number after 10 attempts';
+            END IF;
+        END LOOP;
+        
+        NEW.order_number := new_order_num;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger for order number generation
+CREATE TRIGGER set_order_number
+    BEFORE INSERT ON orders
+    FOR EACH ROW
+    EXECUTE FUNCTION generate_order_number();
+
+-- ============================================================
+-- Enhanced Analytics Views
+-- ============================================================
+
+-- Drop old daily_orders view if exists
+DROP VIEW IF EXISTS daily_orders CASCADE;
+
+-- Create enhanced daily orders view with source tracking
+CREATE OR REPLACE VIEW daily_orders AS
+SELECT 
+    DATE_TRUNC('day', created_at) as date,
+    status,
+    COALESCE(order_source, 'bot_menu') as order_source,
+    COUNT(*) as count,
+    SUM(COALESCE(total_amount, item_price * quantity)) as total_revenue,
+    AVG(COALESCE(total_amount, item_price * quantity)) as avg_order_value
+FROM orders
+GROUP BY DATE_TRUNC('day', created_at), status, order_source
+ORDER BY date DESC, order_source;
+
+-- Order statistics by source
+CREATE OR REPLACE VIEW order_source_stats AS
+SELECT 
+    COALESCE(order_source, 'bot_menu') as order_source,
+    COUNT(*) as total_orders,
+    COUNT(CASE WHEN status = 'delivered' THEN 1 END) as delivered_orders,
+    COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_orders,
+    COUNT(CASE WHEN status = 'placed' THEN 1 END) as pending_orders,
+    SUM(COALESCE(total_amount, item_price * quantity)) / 100 as total_revenue_rs,
+    AVG(COALESCE(total_amount, item_price * quantity)) / 100 as avg_order_value_rs
+FROM orders
+GROUP BY order_source;
+
+-- Top products from catalogue orders
+CREATE OR REPLACE VIEW top_catalogue_products AS
+SELECT 
+    item->>'product_id' as product_id,
+    item->>'name' as product_name,
+    COUNT(*) as times_ordered,
+    SUM((item->>'quantity')::integer) as total_quantity,
+    SUM((item->>'unit_price')::integer) / 100 as total_revenue_rs
+FROM orders,
+LATERAL jsonb_array_elements(items) as item
+WHERE order_source = 'meta_catalogue'
+  AND items IS NOT NULL
+GROUP BY item->>'product_id', item->>'name'
+ORDER BY times_ordered DESC;
+
+-- Customer lifetime value with order source breakdown
+CREATE OR REPLACE VIEW customer_lifetime_value AS
+SELECT 
+    wa_id,
+    customer_phone,
+    COUNT(*) as total_orders,
+    COUNT(CASE WHEN COALESCE(order_source, 'bot_menu') = 'meta_catalogue' THEN 1 END) as catalogue_orders,
+    COUNT(CASE WHEN COALESCE(order_source, 'bot_menu') = 'bot_menu' THEN 1 END) as bot_menu_orders,
+    SUM(COALESCE(total_amount, item_price * quantity)) / 100 as lifetime_value_rs,
+    MAX(created_at) as last_order_date,
+    MIN(created_at) as first_order_date
+FROM orders
+GROUP BY wa_id, customer_phone
+ORDER BY lifetime_value_rs DESC;
+
+-- ============================================================
+-- Helper Functions
+-- ============================================================
+
+-- Function to get formatted order details
+CREATE OR REPLACE FUNCTION get_order_display(order_id BIGINT)
+RETURNS TABLE (
+    order_number VARCHAR(50),
+    customer_info TEXT,
+    items_display TEXT,
+    total_display TEXT,
+    status VARCHAR(50),
+    source VARCHAR(20),
+    created_at TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        o.order_number,
+        o.customer_phone || ' (' || o.wa_id || ')' as customer_info,
+        CASE 
+            WHEN o.items IS NOT NULL THEN 
+                (SELECT STRING_AGG(
+                    (item->>'name') || ' x' || (item->>'quantity') || 
+                    ' (Rs ' || ((item->>'unit_price')::integer / 100)::TEXT || ')',
+                    ', '
+                ) FROM jsonb_array_elements(o.items) as item)
+            ELSE 
+                o.item_name || ' x' || o.quantity
+        END as items_display,
+        'Rs ' || (COALESCE(o.total_amount, o.item_price * o.quantity) / 100)::TEXT as total_display,
+        o.status,
+        COALESCE(o.order_source, 'bot_menu') as source,
+        o.created_at
+    FROM orders o
+    WHERE o.id = order_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================
+-- Cleanup Functions
+-- ============================================================
+
+-- Clean up old processed messages (7+ days)
+CREATE OR REPLACE FUNCTION cleanup_old_processed_messages()
+RETURNS INTEGER AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM processed_messages 
+    WHERE processed_at < NOW() - INTERVAL '7 days';
+    
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Clean up old rate limits (2+ hours)
+CREATE OR REPLACE FUNCTION cleanup_old_rate_limits()
+RETURNS INTEGER AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM rate_limits 
+    WHERE window_start < NOW() - INTERVAL '2 hours';
+    
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================
+-- Verify Migration Success
+-- ============================================================
+DO $$
+DECLARE
+    column_count INTEGER;
+BEGIN
+    -- Check if all new columns were added
+    SELECT COUNT(*) INTO column_count
+    FROM information_schema.columns 
+    WHERE table_name = 'orders' 
+      AND column_name IN ('items', 'total_amount', 'order_source', 'meta_order_id');
+    
+    IF column_count = 4 THEN
+        RAISE NOTICE '✅ Meta Catalogue integration migration completed successfully!';
+        RAISE NOTICE '📊 New columns added: items, total_amount, order_source, meta_order_id';
+        RAISE NOTICE '🔍 New views created: order_source_stats, top_catalogue_products, customer_lifetime_value';
+        RAISE NOTICE '🎯 Your database is ready for Meta catalogue orders!';
+    ELSE
+        RAISE WARNING '⚠️ Migration partially completed. Only % of 4 columns were added.', column_count;
+    END IF;
+END $$;
+
+-- ============================================================
+-- Sample Queries (for testing - commented out)
+-- ============================================================
+
+-- Verify new columns exist
+-- SELECT column_name, data_type 
+-- FROM information_schema.columns 
+-- WHERE table_name = 'orders' 
+--   AND column_name IN ('items', 'total_amount', 'order_source', 'meta_order_id');
+
+-- Check order statistics
+-- SELECT * FROM order_source_stats;
+
+-- View recent orders
+-- SELECT order_number, customer_phone, 
+--        COALESCE(order_source, 'bot_menu') as source,
+--        COALESCE(total_amount, item_price)/100 as total_rs,
+--        status, created_at
+-- FROM orders 
+-- ORDER BY created_at DESC 
+-- LIMIT 10;
+
+TRUNCATE TABLE
+    businesses,
+    users,
+    orders,
+    menu_items,
+    leads,
+    message_logs,
+    processed_messages,
+    rate_limits,
+    analytics_events,
+    payments
+RESTART IDENTITY CASCADE;
+
+BEGIN;
+
+-- Delete child rows first (safe even if none exist)
+DELETE FROM payments WHERE business_id = 1;
+DELETE FROM analytics_events WHERE business_id = 1;
+
+-- Now delete the business
+DELETE FROM businesses WHERE id = 1;
+
+COMMIT;
+
+
+
+-- ============================================================
+-- ADD SUBSCRIPTION COLUMNS TO BUSINESSES TABLE
+-- Run this in Supabase SQL Editor
+-- ============================================================
+
+-- Add subscription columns to businesses table
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS has_subscription BOOLEAN DEFAULT FALSE;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS subscription_amount INTEGER DEFAULT 0;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'inactive';
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS subscription_start_date TIMESTAMPTZ;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS subscription_next_billing TIMESTAMPTZ;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS free_month_used BOOLEAN DEFAULT FALSE;
+
+-- Add constraint for subscription status
+-- Note: Run this only if the constraint doesn't exist
+-- ALTER TABLE businesses ADD CONSTRAINT valid_subscription_status 
+--   CHECK (subscription_status IN ('inactive', 'trial', 'active', 'cancelled', 'expired'));
+
+-- Create index for subscription queries
+CREATE INDEX IF NOT EXISTS idx_businesses_subscription ON businesses(has_subscription);
+CREATE INDEX IF NOT EXISTS idx_businesses_subscription_status ON businesses(subscription_status);
+
+-- Comment on columns
+COMMENT ON COLUMN businesses.has_subscription IS 'Whether customer opted for monthly subscription';
+COMMENT ON COLUMN businesses.subscription_amount IS 'Monthly subscription amount in PKR';
+COMMENT ON COLUMN businesses.subscription_status IS 'Current subscription status: inactive, trial, active, cancelled, expired';
+COMMENT ON COLUMN businesses.subscription_start_date IS 'When subscription started';
+COMMENT ON COLUMN businesses.subscription_next_billing IS 'Next billing date';
+COMMENT ON COLUMN businesses.free_month_used IS 'Whether free first month has been used';
+
+
+-- ============================================================
+-- ADD SUBSCRIPTION COLUMNS TO BUSINESSES TABLE
+-- Run this in Supabase SQL Editor
+-- ============================================================
+
+-- Add subscription columns to businesses table
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS has_subscription BOOLEAN DEFAULT FALSE;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS subscription_amount INTEGER DEFAULT 0;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'inactive';
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS subscription_start_date TIMESTAMPTZ;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS subscription_next_billing TIMESTAMPTZ;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS free_month_used BOOLEAN DEFAULT FALSE;
+
+-- Add constraint for subscription status
+-- Note: Run this only if the constraint doesn't exist
+-- ALTER TABLE businesses ADD CONSTRAINT valid_subscription_status 
+--   CHECK (subscription_status IN ('inactive', 'trial', 'active', 'cancelled', 'expired'));
+
+-- Create index for subscription queries
+CREATE INDEX IF NOT EXISTS idx_businesses_subscription ON businesses(has_subscription);
+CREATE INDEX IF NOT EXISTS idx_businesses_subscription_status ON businesses(subscription_status);
+
+-- Comment on columns
+COMMENT ON COLUMN businesses.has_subscription IS 'Whether customer opted for monthly subscription';
+COMMENT ON COLUMN businesses.subscription_amount IS 'Monthly subscription amount in PKR';
+COMMENT ON COLUMN businesses.subscription_status IS 'Current subscription status: inactive, trial, active, cancelled, expired';
+COMMENT ON COLUMN businesses.subscription_start_date IS 'When subscription started';
+COMMENT ON COLUMN businesses.subscription_next_billing IS 'Next billing date';
+COMMENT ON COLUMN businesses.free_month_used IS 'Whether free first month has been used';
+-- ============================================================
+-- ADD SCREENSHOT URL COLUMN TO PAYMENTS TABLE
+-- Run this in Supabase SQL Editor
+-- ============================================================
+
+-- Add screenshot_url column for Supabase Storage URLs
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS screenshot_url TEXT;
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS screenshot_path TEXT;
+
+-- Add index for faster lookups
+CREATE INDEX IF NOT EXISTS idx_payments_business_id ON payments(business_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at DESC);
+
+-- Add comments
+COMMENT ON COLUMN payments.screenshot_url IS 'Public URL of payment screenshot from Supabase Storage';
+COMMENT ON COLUMN payments.screenshot_path IS 'Storage path in cpc bucket (e.g., payments/payment_123_1234567890.png)';
+
+-- ============================================================
+-- SUPABASE STORAGE BUCKET SETUP
+-- ============================================================
+-- 
+-- 1. Go to Supabase Dashboard > Storage
+-- 2. Make sure bucket 'cpc' exists
+-- 3. Set bucket to PUBLIC (so URLs can be accessed)
+-- 4. Add these Storage Policies:
+--
+-- POLICY 1: Allow uploads (INSERT)
+-- Policy Name: Allow uploads
+-- Allowed operation: INSERT
+-- Target roles: anon, authenticated
+-- Policy definition: true
+--
+-- POLICY 2: Allow public read (SELECT)
+-- Policy Name: Allow public read
+-- Allowed operation: SELECT  
+-- Target roles: anon, authenticated
+-- Policy definition: true
+--
+-- POLICY 3: Allow delete (for admin cleanup)
+-- Policy Name: Allow delete
+-- Allowed operation: DELETE
+-- Target roles: authenticated
+-- Policy definition: true
+--
+-- OR run these SQL commands:
+-- ============================================================
+
+-- Enable RLS on storage.objects if not already
+-- ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Policy to allow anyone to upload to the cpc bucket
+-- CREATE POLICY "Allow uploads to cpc bucket" ON storage.objects
+--   FOR INSERT
+--   WITH CHECK (bucket_id = 'cpc');
+
+-- Policy to allow anyone to view files in cpc bucket
+-- CREATE POLICY "Allow public read from cpc bucket" ON storage.objects
+--   FOR SELECT
+--   USING (bucket_id = 'cpc');
+
+-- Policy to allow deletion (service role only)
+-- CREATE POLICY "Allow service role delete from cpc bucket" ON storage.objects
+--   FOR DELETE
+--   USING (bucket_id = 'cpc');
+
+-- ============================================================
+-- VERIFY SETUP
+-- ============================================================
+-- Run this to verify the columns were added:
+-- SELECT column_name, data_type 
+-- FROM information_schema.columns 
+-- WHERE table_name = 'payments' 
+--   AND column_name IN ('screenshot_url', 'screenshot_path');
