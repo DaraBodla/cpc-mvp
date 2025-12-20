@@ -6,12 +6,11 @@ import {
   MessageSquare, ArrowLeft, Search, Phone, Mail, CheckCircle, 
   Clock, AlertCircle, CreditCard, Package, RefreshCw, Gift,
   Copy, Upload, Image, Building, Loader2, XCircle, UserCheck,
-  Zap, Calendar
+  Zap, Calendar, LucideIcon
 } from 'lucide-react'
 
 const PRICE_PER_FEATURE = 2000
 const ADVANCE_PAYMENT = 2000
-const SUBSCRIPTION_MONTHLY = 1000
 
 const BANK_DETAILS = {
   bankName: 'Sadapay',
@@ -46,7 +45,7 @@ interface Payment {
 interface StatusConfigItem {
   color: string
   bg: string
-  icon: React.ComponentType<{ size?: number; className?: string }>
+  icon: LucideIcon
   label: string
   description: string
 }
@@ -54,7 +53,7 @@ interface StatusConfigItem {
 interface PaymentStatusConfigItem {
   color: string
   bg: string
-  icon: React.ComponentType<{ size?: number; className?: string }>
+  icon: LucideIcon
   label: string
 }
 
