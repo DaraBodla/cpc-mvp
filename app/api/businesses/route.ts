@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       whatsapp,
       email,
       automations,
-      status: 'pending',
+      status: 'signed up',
       created_at: new Date().toISOString()
     }
 
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
           whatsapp,
           email,
           automations,
-          status: 'pending',
+          status: 'signed up',
           created_at: new Date().toISOString()
         }
         

@@ -65,6 +65,7 @@ interface Metrics {
 }
 
 const statusColors: Record<string, string> = {
+  'signed up': 'bg-gray-100 text-gray-800',
   pending: 'bg-amber-100 text-amber-800',
   contacted: 'bg-blue-100 text-blue-800',
   onboarded: 'bg-purple-100 text-purple-800',
@@ -748,6 +749,7 @@ export default function AdminDashboard() {
                               onChange={(e) => updateBusinessStatus(business.id, e.target.value)}
                               className={`px-3 py-1 rounded-full text-xs font-medium border-0 cursor-pointer ${statusColors[business.status]}`}
                             >
+                              <option value="signed up">Signed Up</option>
                               <option value="pending">Pending</option>
                               <option value="contacted">Contacted</option>
                               <option value="onboarded">Onboarded</option>
