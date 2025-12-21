@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { 
-  BarChart3, Users, Package, TrendingUp, 
+import {
+  BarChart3, Users, Package,
   RefreshCw, Search, Eye, Clock, ArrowLeft,
   Mail, Phone, X, Percent, MousePointer, PieChart, CreditCard,
   Lock, KeyRound, Shield, LogOut, AlertCircle, Image, CheckCircle,
-  XCircle, ExternalLink
+  XCircle, ExternalLink, Crown
 } from 'lucide-react'
 
 interface Business {
@@ -639,11 +639,13 @@ export default function AdminDashboard() {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
                 <div className="flex items-center justify-between mb-3">
                   <div className="bg-purple-100 p-2 lg:p-3 rounded-xl">
-                    <TrendingUp className="text-purple-600" size={20} />
+                    <Crown className="text-purple-600" size={20} />
                   </div>
                 </div>
-                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{stats?.totalLeads || 0}</p>
-                <p className="text-gray-500 text-xs lg:text-sm mt-1">Leads</p>
+                <p className="text-2xl lg:text-3xl font-bold text-gray-900">
+                  {businesses.filter((b: Business) => b.has_subscription).length}
+                </p>
+                <p className="text-gray-500 text-xs lg:text-sm mt-1">Subscriptions</p>
               </div>
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
                 <div className="flex items-center justify-between mb-3">
