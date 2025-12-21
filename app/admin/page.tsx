@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
-  BarChart3, Users, Package,
+  BarChart3, Users,
   RefreshCw, Search, Eye, Clock, ArrowLeft,
   Mail, Phone, X, Percent, MousePointer, PieChart, CreditCard,
   Lock, KeyRound, Shield, LogOut, AlertCircle, Image, CheckCircle,
@@ -630,11 +630,11 @@ export default function AdminDashboard() {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
                 <div className="flex items-center justify-between mb-3">
                   <div className="bg-blue-100 p-2 lg:p-3 rounded-xl">
-                    <Package className="text-blue-600" size={20} />
+                    <MousePointer className="text-blue-600" size={20} />
                   </div>
                 </div>
-                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{stats?.totalOrders || 0}</p>
-                <p className="text-gray-500 text-xs lg:text-sm mt-1">Orders</p>
+                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{metrics?.totalDemoClicks || 0}</p>
+                <p className="text-gray-500 text-xs lg:text-sm mt-1">Demo Bot Clicks</p>
               </div>
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
                 <div className="flex items-center justify-between mb-3">
