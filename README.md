@@ -1,6 +1,6 @@
 # CPC MVP - WhatsApp Business Automation Platform
 
-A full-stack web application for WhatsApp business automation featuring:
+A full-stack web application for WhatsApp business automation featuring :
 - **Landing Page**: Business onboarding with automation feature selection
 - **Admin Dashboard**: View registrations, analytics, and manage leads
 - **WhatsApp Bot**: Automated FAQ, catalogue, booking demos, and lead capture
