@@ -292,10 +292,10 @@ export default function AdminDashboard() {
 
   const uniqueTypes = Array.from(new Set(businesses.map(b => b.business_type)))
 
-  // Calculate corrected payment upload rate (divide by 2 since each upload counts twice)
-  const correctedPaymentUploads = Math.floor((metrics?.totalPaymentUploads || 0) / 2)
-  const correctedPaymentRate = metrics?.totalSubmissions 
-    ? ((correctedPaymentUploads / metrics.totalSubmissions) * 100)
+  // Payment upload metrics (now counting actual files in storage bucket)
+  const paymentUploads = metrics?.totalPaymentUploads || 0
+  const paymentUploadRate = metrics?.totalSubmissions
+    ? ((paymentUploads / metrics.totalSubmissions) * 100)
     : 0
 
   // Auth loading state
@@ -556,11 +556,11 @@ export default function AdminDashboard() {
                   <span className="text-xs font-medium text-gray-500 uppercase">Metric 4</span>
                 </div>
                 <p className="text-4xl font-bold text-gray-900 mb-1">
-                  {correctedPaymentRate.toFixed(1)}%
+                  {paymentUploadRate.toFixed(1)}%
                 </p>
                 <p className="text-gray-600 font-medium">Payment Upload Rate</p>
                 <p className="text-sm text-gray-500 mt-2">
-                  {correctedPaymentUploads} uploads / {metrics?.totalSubmissions || 0} submissions
+                  {paymentUploads} uploads / {metrics?.totalSubmissions || 0} submissions
                 </p>
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <p className="text-xs text-gray-500">% of businesses that upload payment screenshot</p>
@@ -617,7 +617,7 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-600">Demo Bot Clicks</p>
               </div>
               <div className="bg-gray-50 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-gray-900">{correctedPaymentUploads}</p>
+                <p className="text-2xl font-bold text-gray-900">{paymentUploads}</p>
                 <p className="text-sm text-gray-600">Payment Uploads</p>
               </div>
             </div>

@@ -138,8 +138,15 @@ export class Analytics {
     const demoClicks = events.filter(e => e.event === 'demo_bot_click')
     const demoMessages = events.filter(e => e.event === 'demo_bot_message')
     
-    const paymentUploads = events.filter(e => e.event === 'payment_screenshot_uploaded')
-    const totalPaymentUploads = paymentUploads.length
+    // Count actual payment uploads from storage bucket instead of analytics events
+    const { data: paymentFiles, error: storageError } = await supabase.storage
+      .from('cpc')
+      .list('payments/', {
+        limit: 1000,
+        sortBy: { column: 'created_at', order: 'desc' }
+      })
+
+    const totalPaymentUploads = storageError ? 0 : (paymentFiles?.length || 0)
     
     // Unique businesses that clicked demo after submitting
     const submittedBusinessIds = new Set(formSubmits.map(e => e.business_id).filter(Boolean))
