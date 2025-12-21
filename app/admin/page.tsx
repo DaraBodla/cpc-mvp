@@ -64,17 +64,6 @@ interface Metrics {
   uniqueDemoEngagements: number
 }
 
-// Supabase URL for storage
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-
-// Helper function to get Supabase Storage URL from path
-const getStorageUrl = (path: string | undefined | null): string | null => {
-  if (!path) return null
-  if (!SUPABASE_URL) return null
-  // Construct the public URL for the storage bucket
-  return `${SUPABASE_URL}/storage/v1/object/public/cpc/${path}`
-}
-
 const statusColors: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-800',
   contacted: 'bg-blue-100 text-blue-800',
@@ -862,17 +851,19 @@ export default function AdminDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {businessPayments.map(payment => {
-                      // Try to get screenshot URL from various sources
+                      // Get screenshot URL - use API endpoint for authenticated access
                       let screenshotUrl: string | null = null
-                      
-                      if (payment.screenshot_url) {
+
+                      if (payment.screenshot_path) {
+                        // Use our API endpoint to fetch the image with authentication
+                        screenshotUrl = `/api/payments/image?path=${encodeURIComponent(payment.screenshot_path)}`
+                      } else if (payment.screenshot_url) {
+                        // Fallback to direct URL if available
                         screenshotUrl = payment.screenshot_url
-                      } else if (payment.screenshot_path) {
-                        screenshotUrl = getStorageUrl(payment.screenshot_path)
                       } else if (payment.screenshot_data) {
-                        // Handle base64 data
-                        screenshotUrl = payment.screenshot_data.startsWith('data:') 
-                          ? payment.screenshot_data 
+                        // Handle base64 data (legacy)
+                        screenshotUrl = payment.screenshot_data.startsWith('data:')
+                          ? payment.screenshot_data
                           : `data:image/png;base64,${payment.screenshot_data}`
                       }
                       
@@ -893,29 +884,49 @@ export default function AdminDashboard() {
                           {/* Screenshot Preview */}
                           {screenshotUrl ? (
                             <div className="mb-3">
-                              <div 
+                              <div
                                 className="relative cursor-pointer group"
                                 onClick={() => setSelectedImage(screenshotUrl)}
                               >
-                                <img 
-                                  src={screenshotUrl} 
+                                <img
+                                  src={screenshotUrl}
                                   alt="Payment Screenshot"
                                   className="w-full max-h-48 object-cover rounded-lg border border-gray-200"
                                   onError={(e) => {
-                                    // If image fails to load, show error state
                                     const target = e.target as HTMLImageElement
+                                    console.error('Failed to load image:', screenshotUrl)
                                     target.style.display = 'none'
-                                    target.parentElement!.innerHTML = '<div class="p-4 bg-red-50 text-red-600 text-sm rounded-lg">Failed to load image</div>'
+                                    const errorDiv = document.createElement('div')
+                                    errorDiv.className = 'p-4 bg-red-50 text-red-600 text-sm rounded-lg'
+                                    errorDiv.innerHTML = `
+                                      <p class="font-medium mb-1">Failed to load image</p>
+                                      <p class="text-xs text-red-500 break-all">${screenshotUrl}</p>
+                                      <p class="text-xs text-red-400 mt-2">The bucket might not be public or the file may have been deleted.</p>
+                                    `
+                                    target.parentElement!.appendChild(errorDiv)
                                   }}
                                 />
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
                                   <ExternalLink className="text-white" size={24} />
                                 </div>
                               </div>
-                              {/* Debug info */}
-                              <p className="text-xs text-gray-400 mt-1 truncate">
-                                {payment.screenshot_path || 'Direct URL'}
-                              </p>
+                              {/* File path info */}
+                              <div className="mt-2 text-xs">
+                                <p className="text-gray-500">
+                                  <span className="font-medium">Path:</span> {payment.screenshot_path || 'N/A'}
+                                </p>
+                                {screenshotUrl && (
+                                  <a
+                                    href={screenshotUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-500 hover:text-blue-700 flex items-center gap-1 mt-1"
+                                  >
+                                    <ExternalLink size={12} />
+                                    Open in new tab
+                                  </a>
+                                )}
+                              </div>
                             </div>
                           ) : (
                             <div className="mb-3 p-3 bg-gray-50 rounded-lg text-center">
